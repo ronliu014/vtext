@@ -93,13 +93,19 @@ vtext-server --binary /opt/whisper.cpp/main         # 指定 whisper.cpp 路径
 
 ## 支持的模型
 
-| 模型 | 大小 | 说明 |
-|------|------|------|
-| `tiny` | 75MB | 速度最快，精度较低 |
-| `base` | 142MB | 默认，速度与精度均衡 |
-| `small` | 466MB | 精度更好 |
-| `medium` | 1.5GB | 高精度 |
-| `large-v3` | 3.1GB | 最高精度 |
+实测数据（CPU，测试音频 21 秒中文 / 11 秒英文）：
+
+| 模型 | 大小 | 中文（自动检测）| 中文耗时 | 英文耗时 | 推荐场景 |
+|------|------|----------------|---------|---------|---------|
+| `tiny` | 75MB | ❌ 识别为英文 | — | <1s | 仅限英文快速原型 |
+| `base` | 142MB | ❌ 错误率高 | — | ~2s | 仅限英文 |
+| `small` | 466MB | ✅ 自动识别 | ~11s | ~4s | **中文推荐最低配置** |
+| `medium` | 1.5GB | ⚠️ 须加 `-l zh` | ~32s | — | 高精度，需指定语言 |
+| `large-v3` | 3.1GB | ✅ 自动识别 | ~65s | ~51s | 最高精度 |
+
+**中文必须用 `small` 及以上**；`medium` 不指定语言会输出英文翻译，需加 `-l zh`；`large-v3` 修正了这一问题，自动检测恢复正常。
+
+详细对比见 [docs/models.md](./docs/models.md)。
 
 ---
 
@@ -121,3 +127,4 @@ vtext-server --binary /opt/whisper.cpp/main         # 指定 whisper.cpp 路径
 - [docs/api.md](./docs/api.md) — API 端点与 SSE 协议
 - [docs/architecture.md](./docs/architecture.md) — 架构决策记录
 - [docs/deployment.md](./docs/deployment.md) — Docker / systemd 部署指南
+- [docs/models.md](./docs/models.md) — 模型选择指南与实测对比
