@@ -9,7 +9,7 @@
 pip install -e ".[full,dev]"
 
 # 启动 server
-vtext-server --model tiny
+vtext-server --model small
 
 # 另一个终端使用客户端
 vtext video.mp4
@@ -41,10 +41,10 @@ RUN pip install --no-cache-dir ".[server]"
 ENV WHISPER_CPP_BIN=/opt/whisper.cpp/main
 
 # 预下载默认模型
-RUN python -m vtext_server.models download base
+RUN python -m vtext_server.models download small
 
 EXPOSE 8000
-CMD ["vtext-server", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["vtext-server", "--host", "0.0.0.0", "--port", "8000", "--model", "small"]
 ```
 
 ### docker-compose.yml
@@ -62,7 +62,7 @@ services:
     volumes:
       - ./models:/root/.cache/vtext/models
     environment:
-      - WHISPER_CPP_MODEL=/root/.cache/vtext/models/ggml-base.bin
+      - WHISPER_CPP_MODEL=/root/.cache/vtext/models/ggml-small.bin
     restart: unless-stopped
 ```
 
@@ -84,7 +84,7 @@ After=network.target
 Type=simple
 User=vtext
 WorkingDirectory=/opt/vtext
-ExecStart=/usr/local/bin/vtext-server --host 0.0.0.0 --port 8000 --model base
+ExecStart=/usr/local/bin/vtext-server --host 0.0.0.0 --port 8000 --model small
 Restart=on-failure
 RestartSec=10
 
@@ -110,7 +110,7 @@ port = 8000
 workers = 4             # 默认等于 CPU 核心数
 queue_max = 16          # 队列上限，超出返回 429
 whisper_binary = "/opt/whisper.cpp/whisper-cli"
-model = "base"          # 默认模型名称或模型文件路径
+model = "small"         # 默认模型名称或模型文件路径
 threads = 4             # whisper.cpp 线程数
 models_dir = "~/.cache/vtext/models"
 max_file_size = 524288000   # 500MB，单位字节
@@ -124,7 +124,7 @@ job_ttl = 600
 server_url = "http://127.0.0.1:8000"
 default_format = "txt"    # txt / srt / vtt
 default_language = "zh"   # 留空则自动检测
-default_model = "base"    # 留空则使用服务端默认模型
+default_model = "small"   # 留空则使用服务端默认模型
 default_jobs = 1          # 批量处理并发数
 ```
 
@@ -153,7 +153,7 @@ default_jobs = 1          # 批量处理并发数
 
 ```sh
 # 终端 1
-vtext-server --model tiny
+vtext-server --model small
 
 # 终端 2
 vtext video.mp4 -o output.txt
