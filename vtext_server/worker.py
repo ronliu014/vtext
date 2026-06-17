@@ -1,10 +1,10 @@
 """Worker process: pulls jobs from queue and runs whisper.cpp."""
 from pathlib import Path
 
+from vtext_common.types import JobStatus
 from .config import ServerConfig
 from .errors import TranscriptionError, ModelNotFoundError
 from .models import resolve_model_path
-from .queue import JobStatus
 from .transcriber import transcribe
 from vtext_common.formats import format_output
 

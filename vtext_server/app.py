@@ -1,17 +1,18 @@
 """FastAPI application."""
 import queue
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import zstandard as zstd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
+from vtext_common.types import JobStatus
 from .config import ServerConfig
 from .errors import ModelNotFoundError, TranscriptionError
 from .models import list_available, list_cached, resolve_model_path, download
-from .queue import TranscriptionQueue, JobStatus
+from .queue import TranscriptionQueue
 
 _tqueue: TranscriptionQueue | None = None
 _config: ServerConfig | None = None
@@ -22,16 +23,13 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     _config = config or ServerConfig()
     _tqueue = TranscriptionQueue(_config)
 
-    app = FastAPI(title="vtext-server")
-
-    @app.on_event("startup")
-    async def startup():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         _tqueue.start()
-
-    @app.on_event("shutdown")
-    async def shutdown():
+        yield
         _tqueue.stop()
 
+    app = FastAPI(title="vtext-server", lifespan=lifespan)
     app.include_router(_router())
     return app
 

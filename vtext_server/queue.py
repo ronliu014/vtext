@@ -2,17 +2,11 @@
 import multiprocessing
 import queue
 import uuid
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-
-class JobStatus(str, Enum):
-    QUEUED = "queued"
-    PROCESSING = "processing"
-    DONE = "done"
-    ERROR = "error"
+from vtext_common.types import JobStatus
 
 
 @dataclass

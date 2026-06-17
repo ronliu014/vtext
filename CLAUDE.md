@@ -49,20 +49,31 @@ Three Python packages live in one repo:
 ### Key design rules
 
 - The client **only** uses `requests` and `click` — never import server-side deps in client code.
-- whisper.cpp is called as a **subprocess** inside `vtext_server/transcriber.py`, not via a Python binding.
-- ffmpeg audio extraction happens in `vtext_server/audio.py` before passing audio to whisper.cpp.
-- `vtext_common/types.py` defines the shared data model for transcription results (segments with start/end/text).
+- **ffmpeg runs on the client** (`vtext_client/audio.py`) to extract 16 kHz mono WAV before upload. The server only ever receives WAV files.
+- whisper.cpp is called as a **subprocess** inside `vtext_server/transcriber.py`, not via a Python binding. Output is parsed from `--output-json`.
+- Files ≥ 100 MB are compressed with zstd level 3 on the client before upload; `encoding=zstd` is passed as a form field so the server knows to decompress.
+- `vtext_common/types.py` defines the shared `JobStatus` enum used by both server queue and client.
+
+### Async job flow
+
+1. `POST /transcribe` → decompresses if needed, enqueues, returns `{job_id, status, position}` (HTTP 201). Returns HTTP 429 with queue stats if full.
+2. `GET /jobs/{job_id}/stream` → SSE stream. Events: `queued` (position), `processing` (progress 0–100), `done` (result JSON), `error` (message).
+3. `GET /jobs/{job_id}` → polling alternative; returns current status snapshot.
+
+Server uses `multiprocessing` workers (not threads) — configured by `--workers`. Worker count and queue size are in `ServerConfig`.
 
 ### REST API (server exposes)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/transcribe` | Upload file, returns transcript with segments |
-| `GET` | `/health` | Server status and loaded model info |
-| `GET` | `/models` | List available/cached models |
-| `POST` | `/models/download` | Download a model by name |
+| `POST` | `/transcribe` | Upload WAV, enqueue job, return job_id |
+| `GET`  | `/jobs/{id}/stream` | SSE progress stream |
+| `GET`  | `/jobs/{id}` | Job status snapshot |
+| `GET`  | `/health` | Server/queue/worker status |
+| `GET`  | `/models` | List available/cached models |
+| `POST` | `/models/download` | Download a named model |
 
-`POST /transcribe` accepts `multipart/form-data` with fields: `file`, `language` (optional), `format` (txt/srt/vtt), `model` (optional override).
+`POST /transcribe` form fields: `file` (binary), `encoding` (`zstd` or omit), `language` (optional), `format` (`txt`/`srt`/`vtt`), `model` (optional name override).
 
 ### Configuration priority
 
