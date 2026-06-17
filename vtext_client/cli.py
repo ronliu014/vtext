@@ -21,7 +21,7 @@ def _build_cli():
     @click.option("--server", default=cfg.server_url, show_default=True,
                   help="vtext-server URL")
     @click.option("-o", "--output", type=click.Path(), default=None,
-                  help="Output file path (default: stdout)")
+                  help="Output file or directory (default: text/ subdir next to input; use '-' for stdout)")
     @click.option("-f", "--format", "fmt",
                   type=click.Choice(["txt", "srt", "vtt"]),
                   default=cfg.default_format, show_default=True)
@@ -110,9 +110,12 @@ def _transcribe_file(
             bar.update(100 - last)
 
         text = result.formatted or format_output(result.segments, fmt)
-        if output:
-            Path(output).write_text(text, encoding="utf-8")
-            click.echo(f"Saved to {output}", err=True)
+        output_path = _resolve_output_path(input_path, output, fmt)
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(text, encoding="utf-8")
+            click.echo(f"Saved to {output_path}", err=True)
         else:
             click.echo(text)
 
@@ -139,3 +142,30 @@ def _do_check_server(server: str) -> None:
     except ServerConnectionError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+
+def _resolve_output_path(
+    input_path: Path, output: str | None, fmt: str
+) -> Path | None:
+    """Resolve output path based on user input and defaults.
+
+    Rules:
+    - If output is None: create text/ subdir next to input, use input stem + .fmt
+    - If output is a directory: use that dir + input stem + .fmt
+    - If output is a file path: use it as-is
+    - If output is "-": return None (stdout)
+    """
+    if output == "-":
+        return None
+    if output is None:
+        # Default: create text/ subdir in input's directory
+        text_dir = input_path.parent / "text"
+        return text_dir / f"{input_path.stem}.{fmt}"
+
+    output_path = Path(output)
+    if output_path.is_dir() or (not output_path.suffix and not output_path.exists()):
+        # output is a directory (existing or looks like a dir)
+        return output_path / f"{input_path.stem}.{fmt}"
+    else:
+        # output is a full file path
+        return output_path

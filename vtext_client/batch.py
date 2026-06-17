@@ -30,12 +30,17 @@ def batch_transcribe(
         click.echo(f"No supported media files found in {directory}", err=True)
         return
 
+    # Create text/ subdir in the input directory
+    text_dir = directory / "text"
+    text_dir.mkdir(parents=True, exist_ok=True)
+
     click.echo(f"Found {len(files)} file(s). Processing with {jobs} parallel job(s).", err=True)
+    click.echo(f"Output directory: {text_dir}", err=True)
 
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         futures = {
             pool.submit(
-                _process_one, f, server=server, fmt=fmt,
+                _process_one, f, text_dir=text_dir, server=server, fmt=fmt,
                 language=language, model=model
             ): f
             for f in files
@@ -44,13 +49,14 @@ def batch_transcribe(
             f = futures[future]
             try:
                 out_path = future.result()
-                click.echo(f"  Done: {f.name} -> {out_path}", err=True)
+                click.echo(f"  Done: {f.name} -> {out_path.name}", err=True)
             except VtextClientError as e:
                 click.echo(f"  Failed: {f.name}: {e}", err=True)
 
 
 def _process_one(
     input_path: Path,
+    text_dir: Path,
     server: str,
     fmt: str,
     language: str | None,
@@ -71,8 +77,9 @@ def _process_one(
         result = stream_progress(server, job_id)
         from vtext_common.formats import format_output
         text = result.formatted or format_output(result.segments, fmt)
-        ext = f".{fmt}"
-        out_path = input_path.with_suffix(ext)
+
+        # Save to text_dir with input filename + .fmt extension
+        out_path = text_dir / f"{input_path.stem}.{fmt}"
         out_path.write_text(text, encoding="utf-8")
         return out_path
     finally:

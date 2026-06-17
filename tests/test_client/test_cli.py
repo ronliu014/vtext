@@ -65,7 +65,25 @@ class TestTranscribeFile:
             patch("vtext_client.cli.stream_progress", return_value=result),
         ]
 
-    def test_outputs_to_stdout(self, runner, tmp_path):
+    def test_outputs_to_stdout_with_dash(self, runner, tmp_path):
+        """Test that -o - outputs to stdout instead of a file."""
+        input_file = tmp_path / "audio.mp3"
+        input_file.touch()
+        wav = tmp_path / "audio.wav"
+        wav.touch()
+        result = make_result("Hello world")
+
+        with patch("vtext_client.cli.extract_wav", return_value=wav), \
+             patch("vtext_client.cli.maybe_compress", return_value=(wav, None)), \
+             patch("vtext_client.cli.submit_job", return_value="abc12345"), \
+             patch("vtext_client.cli.stream_progress", return_value=result):
+            r = runner.invoke(cli, [str(input_file), "-o", "-"])
+
+        assert r.exit_code == 0
+        assert "Hello world" in r.output
+
+    def test_default_outputs_to_text_subdir(self, runner, tmp_path):
+        """Test that default behavior creates text/ subdir."""
         input_file = tmp_path / "audio.mp3"
         input_file.touch()
         wav = tmp_path / "audio.wav"
@@ -79,7 +97,11 @@ class TestTranscribeFile:
             r = runner.invoke(cli, [str(input_file)])
 
         assert r.exit_code == 0
-        assert "Hello world" in r.output
+        text_dir = tmp_path / "text"
+        assert text_dir.exists()
+        out_file = text_dir / "audio.txt"
+        assert out_file.exists()
+        assert out_file.read_text(encoding="utf-8") == "Hello world"
 
     def test_writes_to_output_file(self, runner, tmp_path):
         input_file = tmp_path / "audio.mp3"

@@ -35,6 +35,8 @@ class TestProcessOne:
     def test_success_writes_output(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
         input_file.touch()
+        text_dir = tmp_path / "text"
+        text_dir.mkdir()
         wav = tmp_path / "clip.wav"
         wav.write_bytes(b"wav data")
         result = make_result("Transcribed")
@@ -43,15 +45,17 @@ class TestProcessOne:
              patch("vtext_client.batch.maybe_compress", return_value=(wav, None)), \
              patch("vtext_client.batch.submit_job", return_value="job1"), \
              patch("vtext_client.batch.stream_progress", return_value=result):
-            out_path = _process_one(input_file, server="http://localhost:8000",
+            out_path = _process_one(input_file, text_dir=text_dir, server="http://localhost:8000",
                                     fmt="txt", language=None, model=None)
 
-        assert out_path == input_file.with_suffix(".txt")
+        assert out_path == text_dir / "clip.txt"
         assert out_path.read_text(encoding="utf-8") == "Transcribed"
 
     def test_cleans_up_wav(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
         input_file.touch()
+        text_dir = tmp_path / "text"
+        text_dir.mkdir()
         wav = tmp_path / "clip.wav"
         wav.write_bytes(b"wav")
         result = make_result()
@@ -60,7 +64,7 @@ class TestProcessOne:
              patch("vtext_client.batch.maybe_compress", return_value=(wav, None)), \
              patch("vtext_client.batch.submit_job", return_value="job1"), \
              patch("vtext_client.batch.stream_progress", return_value=result):
-            _process_one(input_file, server="http://localhost:8000",
+            _process_one(input_file, text_dir=text_dir, server="http://localhost:8000",
                          fmt="txt", language=None, model=None)
 
         assert not wav.exists()
@@ -68,6 +72,8 @@ class TestProcessOne:
     def test_cleans_up_compressed_file(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
         input_file.touch()
+        text_dir = tmp_path / "text"
+        text_dir.mkdir()
         wav = tmp_path / "clip.wav"
         wav.write_bytes(b"wav")
         zst = tmp_path / "clip.wav.zst"
@@ -78,7 +84,7 @@ class TestProcessOne:
              patch("vtext_client.batch.maybe_compress", return_value=(zst, "zstd")), \
              patch("vtext_client.batch.submit_job", return_value="job1"), \
              patch("vtext_client.batch.stream_progress", return_value=result):
-            _process_one(input_file, server="http://localhost:8000",
+            _process_one(input_file, text_dir=text_dir, server="http://localhost:8000",
                          fmt="txt", language=None, model=None)
 
         assert not wav.exists()
@@ -87,6 +93,8 @@ class TestProcessOne:
     def test_uses_formatted_result_when_available(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
         input_file.touch()
+        text_dir = tmp_path / "text"
+        text_dir.mkdir()
         wav = tmp_path / "clip.wav"
         wav.write_bytes(b"wav")
         result = make_result("raw text")
@@ -96,7 +104,7 @@ class TestProcessOne:
              patch("vtext_client.batch.maybe_compress", return_value=(wav, None)), \
              patch("vtext_client.batch.submit_job", return_value="job1"), \
              patch("vtext_client.batch.stream_progress", return_value=result):
-            out_path = _process_one(input_file, server="http://localhost:8000",
+            out_path = _process_one(input_file, text_dir=text_dir, server="http://localhost:8000",
                                     fmt="srt", language=None, model=None)
 
         assert "00:00:00,000" in out_path.read_text(encoding="utf-8")
@@ -104,6 +112,8 @@ class TestProcessOne:
     def test_srt_output_extension(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
         input_file.touch()
+        text_dir = tmp_path / "text"
+        text_dir.mkdir()
         wav = tmp_path / "clip.wav"
         wav.write_bytes(b"wav")
         result = make_result()
@@ -112,7 +122,7 @@ class TestProcessOne:
              patch("vtext_client.batch.maybe_compress", return_value=(wav, None)), \
              patch("vtext_client.batch.submit_job", return_value="job1"), \
              patch("vtext_client.batch.stream_progress", return_value=result):
-            out_path = _process_one(input_file, server="http://localhost:8000",
+            out_path = _process_one(input_file, text_dir=text_dir, server="http://localhost:8000",
                                     fmt="srt", language=None, model=None)
 
         assert out_path.suffix == ".srt"
