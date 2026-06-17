@@ -109,6 +109,65 @@ class TestTranscribe:
         assert result.language == "en"
         assert len(result.segments) == 1
 
+    def test_defaults_to_auto_language(self, tmp_path):
+        """When no language is given, whisper must receive --language auto,
+        otherwise whisper.cpp defaults to English."""
+        wav = tmp_path / "audio.wav"
+        wav.touch()
+        model = tmp_path / "model.bin"
+        model.touch()
+
+        json_content = self._make_json_data()
+        captured_cmd = []
+
+        def fake_run(cmd, **kwargs):
+            captured_cmd.extend(cmd)
+            for i, arg in enumerate(cmd):
+                if arg == "--output-file" and i + 1 < len(cmd):
+                    out_path = Path(cmd[i + 1] + ".json")
+                    out_path.write_text(json_content, encoding="utf-8")
+                    break
+            mock = MagicMock()
+            mock.returncode = 0
+            return mock
+
+        with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
+            with patch("subprocess.run", side_effect=fake_run):
+                transcribe(wav, "whisper-cli", model, language=None, threads=2)
+
+        assert "--language" in captured_cmd
+        lang_idx = captured_cmd.index("--language")
+        assert captured_cmd[lang_idx + 1] == "auto"
+
+    def test_explicit_language_passed_through(self, tmp_path):
+        """An explicit language code must be passed verbatim to whisper."""
+        wav = tmp_path / "audio.wav"
+        wav.touch()
+        model = tmp_path / "model.bin"
+        model.touch()
+
+        json_content = self._make_json_data()
+        captured_cmd = []
+
+        def fake_run(cmd, **kwargs):
+            captured_cmd.extend(cmd)
+            for i, arg in enumerate(cmd):
+                if arg == "--output-file" and i + 1 < len(cmd):
+                    out_path = Path(cmd[i + 1] + ".json")
+                    out_path.write_text(json_content, encoding="utf-8")
+                    break
+            mock = MagicMock()
+            mock.returncode = 0
+            return mock
+
+        with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
+            with patch("subprocess.run", side_effect=fake_run):
+                transcribe(wav, "whisper-cli", model, language="zh", threads=2)
+
+        assert "--language" in captured_cmd
+        lang_idx = captured_cmd.index("--language")
+        assert captured_cmd[lang_idx + 1] == "zh"
+
     def test_binary_not_found_raises(self, tmp_path):
         wav = tmp_path / "audio.wav"
         wav.touch()

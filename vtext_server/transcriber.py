@@ -35,8 +35,10 @@ def transcribe(
         "--threads", str(threads),
         "--no-prints",
     ]
-    if language:
-        cmd += ["--language", language]
+    # whisper.cpp defaults to "en" when --language is omitted, which forces
+    # English transcription regardless of the actual audio language. Pass
+    # "auto" so it detects the spoken language and transcribes in it.
+    cmd += ["--language", language if language else "auto"]
 
     try:
         logger.debug("whisper cmd=%s", " ".join(cmd))
