@@ -6,37 +6,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `vtext` is a client-server audio/video transcription tool built on whisper.cpp and ffmpeg. The server handles heavy transcription work; the client is a lightweight CLI that communicates with the server over HTTP.
 
+## Environment
+
+- Python: `/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3` (use this explicitly; the default pyenv shim points to 3.13.12 which has a broken pip)
+- whisper.cpp: `/mnt/data/projects/whisper.cpp/build/bin/whisper-cli`
+- Server config: `~/.config/vtext/server.toml`
+
 ## Commands
 
 ```sh
-# Install client only
-pip install -e .
-
-# Install with server dependencies
-pip install -e ".[server]"
-
-# Install with dev dependencies
-pip install -e ".[full,dev]"
+# Install with dev dependencies (use the 3.13.2 pip directly)
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/pip3 install -e ".[full,dev]"
 
 # Run tests
-pytest
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3 -m pytest
 
 # Run a single test file
-pytest tests/test_server/test_app.py
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3 -m pytest tests/test_server/test_app.py
 
 # Run with coverage
-pytest --cov
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3 -m pytest --cov
 
 # Lint / format
 ruff check .
 black .
 
 # Start the server (dev)
-vtext-server --model tiny
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3 -m vtext_server
 
 # Use the client
-vtext video.mp4
+/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3 -m vtext_client video.mp4
 ```
+
+## Deployment (systemd user service)
+
+The server runs as a systemd user service on this machine:
+
+```sh
+# Service file: ~/.config/systemd/user/vtext.service
+systemctl --user status vtext
+systemctl --user restart vtext
+journalctl --user -u vtext -f
+```
+
+Service is enabled with `loginctl enable-linger ubuntu` so it survives logout.
+
+## whisper.cpp
+
+Binary lives at `/mnt/data/projects/whisper.cpp/`. If recompilation is needed (e.g. after moving the directory):
+
+```sh
+cd /mnt/data/projects/whisper.cpp
+rm -rf build
+cmake -B build -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON
+cmake --build build --target whisper-cli -j$(nproc)
+```
+
+The `RPATH_USE_ORIGIN` flag is required so the binary finds `libwhisper.so` relative to its own location without needing `LD_LIBRARY_PATH`.
 
 ## Architecture
 

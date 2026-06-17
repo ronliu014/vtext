@@ -14,9 +14,16 @@ from .config import load_server_config
 @click.option("--workers", default=None, type=int, help="Worker processes (overrides config)")
 @click.option("--config", "config_file", default=None, type=click.Path(),
               help="Path to server TOML config file")
-def main(host, port, model, binary, workers, config_file):
+@click.option("--log-dir", default=None, type=click.Path(),
+              help="Directory for log files (rotated daily). Omit to log to console only.")
+@click.option("--log-level", default=None,
+              type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+              help="Log level (overrides config)")
+def main(host, port, model, binary, workers, config_file, log_dir, log_level):
     """Start vtext transcription server."""
     from pathlib import Path
+    from .logging_setup import setup_logging
+
     cfg = load_server_config(Path(config_file) if config_file else None)
 
     # CLI args override everything
@@ -30,9 +37,23 @@ def main(host, port, model, binary, workers, config_file):
         cfg.whisper_binary = binary
     if workers is not None:
         cfg.workers = workers
+    if log_dir is not None:
+        cfg.log_dir = Path(log_dir)
+    if log_level is not None:
+        cfg.log_level = log_level.upper()
+
+    setup_logging(cfg.log_dir, cfg.log_level)
+
+    import logging
+    logger = logging.getLogger("vtext.server")
+    logger.info(
+        "starting vtext-server host=%s port=%d workers=%d model=%s log_dir=%s",
+        cfg.host, cfg.port, cfg.workers, cfg.model,
+        str(cfg.log_dir) if cfg.log_dir else "console-only",
+    )
 
     app = create_app(cfg)
-    uvicorn.run(app, host=cfg.host, port=cfg.port)
+    uvicorn.run(app, host=cfg.host, port=cfg.port, log_config=None)
 
 
 if __name__ == "__main__":

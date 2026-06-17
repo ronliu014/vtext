@@ -24,6 +24,8 @@ class ServerConfig:
     max_file_size: int = 500 * 1024 * 1024  # 500 MB
     request_timeout: int = 300
     job_ttl: int = 600
+    log_dir: Path | None = None
+    log_level: str = "INFO"
 
 
 def load_server_config(config_file: Path | None = None) -> ServerConfig:
@@ -58,6 +60,10 @@ def load_server_config(config_file: Path | None = None) -> ServerConfig:
         cfg.request_timeout = int(toml["request_timeout"])
     if "job_ttl" in toml:
         cfg.job_ttl = int(toml["job_ttl"])
+    if "log_dir" in toml:
+        cfg.log_dir = Path(toml["log_dir"]).expanduser()
+    if "log_level" in toml:
+        cfg.log_level = str(toml["log_level"]).upper()
 
     # Env var layer (overrides TOML)
     if v := os.environ.get("WHISPER_CPP_BIN"):
@@ -72,5 +78,9 @@ def load_server_config(config_file: Path | None = None) -> ServerConfig:
         cfg.workers = int(v)
     if v := os.environ.get("VTEXT_MODELS_DIR"):
         cfg.models_dir = Path(v)
+    if v := os.environ.get("VTEXT_LOG_DIR"):
+        cfg.log_dir = Path(v).expanduser()
+    if v := os.environ.get("VTEXT_LOG_LEVEL"):
+        cfg.log_level = v.upper()
 
     return cfg

@@ -43,6 +43,69 @@ pip install -e ".[full,dev]"
 
 ---
 
+## 部署
+
+### 服务端前置依赖：whisper.cpp
+
+服务端需要 whisper.cpp 二进制和模型文件：
+
+```sh
+# 编译 whisper.cpp（需要 cmake、gcc/clang）
+git clone https://github.com/ggerganov/whisper.cpp.git
+cd whisper.cpp
+cmake -B build -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON
+cmake --build build --target whisper-cli -j$(nproc)
+
+# 下载模型（中文推荐 small 及以上）
+./models/download-ggml-model.sh small
+```
+
+### 服务端配置
+
+创建 `~/.config/vtext/server.toml`（所有字段均有默认值，按需修改）：
+
+```toml
+host = "127.0.0.1"
+port = 8000
+workers = 4
+whisper_binary = "/path/to/whisper.cpp/build/bin/whisper-cli"
+model = "small"
+models_dir = "~/.cache/vtext/models"
+```
+
+### systemd 用户级服务（推荐，开机自启）
+
+使用项目自带的管理脚本：
+
+```sh
+scripts/vtext-service.sh install   # 安装并 enable 服务（开机自启）
+scripts/vtext-service.sh start     # 启动
+scripts/vtext-service.sh stop      # 停止
+scripts/vtext-service.sh restart   # 重启
+scripts/vtext-service.sh status    # 查看 systemd 状态 + health API 信息
+scripts/vtext-service.sh logs 100  # 查看最近 100 行日志（默认 50）
+scripts/vtext-service.sh follow    # 实时追踪日志
+scripts/vtext-service.sh uninstall # 停止并删除服务
+```
+
+脚本会自动执行 `loginctl enable-linger`，确保服务在用户登出后继续运行。
+
+### 客户端配置
+
+创建 `~/.config/vtext/client.toml`：
+
+```toml
+server_url = "http://127.0.0.1:8000"   # 远程服务器改为对应地址
+default_format = "txt"                  # txt / srt / vtt
+default_language = "zh"                 # 留空则自动检测
+```
+
+配置优先级：**CLI 参数 > 环境变量 > TOML 配置 > 内置默认值**
+
+详细部署选项（Docker、环境变量、安全配置）见 [docs/deployment.md](./docs/deployment.md)。
+
+---
+
 ## 快速上手
 
 ### 单机本地使用
@@ -87,6 +150,17 @@ vtext-server --host 0.0.0.0 --port 9000            # 监听所有网卡
 vtext-server --model large-v3                       # 指定模型
 vtext-server --workers 4                            # 并发 worker 数（默认 = CPU 核心数）
 vtext-server --binary /opt/whisper.cpp/main         # 指定 whisper.cpp 路径
+vtext-server --log-dir /var/log/vtext               # 日志目录（不填则只输出到控制台）
+vtext-server --log-level DEBUG                      # 日志级别：DEBUG / INFO / WARNING / ERROR
+```
+
+日志文件按天切割，保留 30 天，文件名格式：`vtext-server.YYYY-MM-DD.log`。
+
+日志目录也可在 `server.toml` 中配置：
+
+```toml
+log_dir = "~/.local/share/vtext/logs"
+log_level = "INFO"
 ```
 
 ---
