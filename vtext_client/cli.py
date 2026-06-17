@@ -7,45 +7,58 @@ import click
 from .api import check_health, submit_job, stream_progress
 from .audio import extract_wav, maybe_compress
 from .batch import batch_transcribe
+from .config import load_client_config
 from .errors import QueueFullError, ServerConnectionError, VtextClientError
 from vtext_common.formats import format_output
 
 
-@click.command()
-@click.argument("input", required=False)
-@click.option("--server", envvar="VTEXT_SERVER_URL", default="http://127.0.0.1:8000",
-              show_default=True, help="vtext-server URL")
-@click.option("-o", "--output", type=click.Path(), default=None,
-              help="Output file path (default: stdout)")
-@click.option("-f", "--format", "fmt", type=click.Choice(["txt", "srt", "vtt"]),
-              default="txt", show_default=True)
-@click.option("-l", "--language", default=None, help="Language code, e.g. en, zh")
-@click.option("-m", "--model", default=None, help="Override server default model")
-@click.option("-j", "--jobs", default=1, show_default=True,
-              help="Parallel jobs for batch processing")
-@click.option("--check-server", is_flag=True, default=False,
-              help="Check server health and exit")
-def cli(input, server, output, fmt, language, model, jobs, check_server):
-    """Transcribe audio/video files using vtext-server."""
-    if check_server:
-        _do_check_server(server)
-        return
+def _build_cli():
+    """Build the CLI command with TOML defaults baked in as click defaults."""
+    cfg = load_client_config()
 
-    if not input:
-        raise click.UsageError("Please provide an input file or directory.")
+    @click.command()
+    @click.argument("input", required=False)
+    @click.option("--server", default=cfg.server_url, show_default=True,
+                  help="vtext-server URL")
+    @click.option("-o", "--output", type=click.Path(), default=None,
+                  help="Output file path (default: stdout)")
+    @click.option("-f", "--format", "fmt",
+                  type=click.Choice(["txt", "srt", "vtt"]),
+                  default=cfg.default_format, show_default=True)
+    @click.option("-l", "--language", default=cfg.default_language,
+                  help="Language code, e.g. en, zh")
+    @click.option("-m", "--model", default=cfg.default_model,
+                  help="Override server default model")
+    @click.option("-j", "--jobs", default=cfg.default_jobs, show_default=True,
+                  help="Parallel jobs for batch processing")
+    @click.option("--check-server", is_flag=True, default=False,
+                  help="Check server health and exit")
+    def _cli(input, server, output, fmt, language, model, jobs, check_server):
+        """Transcribe audio/video files using vtext-server."""
+        if check_server:
+            _do_check_server(server)
+            return
 
-    input_path = Path(input)
-    if not input_path.exists():
-        click.echo(f"Error: {input_path} does not exist.", err=True)
-        sys.exit(1)
+        if not input:
+            raise click.UsageError("Please provide an input file or directory.")
 
-    if input_path.is_dir():
-        batch_transcribe(input_path, server=server, fmt=fmt,
-                         language=language, model=model, jobs=jobs)
-        return
+        input_path = Path(input)
+        if not input_path.exists():
+            click.echo(f"Error: {input_path} does not exist.", err=True)
+            sys.exit(1)
 
-    _transcribe_file(input_path, server=server, output=output,
-                     fmt=fmt, language=language, model=model)
+        if input_path.is_dir():
+            batch_transcribe(input_path, server=server, fmt=fmt,
+                             language=language, model=model, jobs=jobs)
+            return
+
+        _transcribe_file(input_path, server=server, output=output,
+                         fmt=fmt, language=language, model=model)
+
+    return _cli
+
+
+cli = _build_cli()
 
 
 def _transcribe_file(

@@ -105,37 +105,45 @@ sudo systemctl start vtext-server
 ### 服务端（~/.config/vtext/server.toml）
 
 ```toml
-[server]
 host = "127.0.0.1"
 port = 8000
-workers = 4          # 默认等于 CPU 核心数
-queue_max = 16       # 队列上限，超出返回 429
-
-[whisper]
-binary = "/opt/whisper.cpp/main"
-model = "base"
-threads = 4
-
-[models]
-cache_dir = "~/.cache/vtext/models"
-
-[logging]
-level = "INFO"
-file = "/var/log/vtext/server.log"
+workers = 4             # 默认等于 CPU 核心数
+queue_max = 16          # 队列上限，超出返回 429
+whisper_binary = "/opt/whisper.cpp/whisper-cli"
+model = "base"          # 默认模型名称或模型文件路径
+threads = 4             # whisper.cpp 线程数
+models_dir = "~/.cache/vtext/models"
+max_file_size = 524288000   # 500MB，单位字节
+request_timeout = 300
+job_ttl = 600
 ```
 
 ### 客户端（~/.config/vtext/client.toml）
 
 ```toml
-[client]
 server_url = "http://127.0.0.1:8000"
-timeout = 300
-retry_max = 3        # 连接失败/超时最多重试次数
-
-[output]
-default_format = "txt"
-default_dir = "./transcripts"
+default_format = "txt"    # txt / srt / vtt
+default_language = "zh"   # 留空则自动检测
+default_model = "base"    # 留空则使用服务端默认模型
+default_jobs = 1          # 批量处理并发数
 ```
+
+优先级：**CLI 参数 > 环境变量 > TOML 配置文件 > 内置默认值**
+
+支持的环境变量：
+
+| 变量 | 对应配置 |
+|------|----------|
+| `WHISPER_CPP_BIN` | `whisper_binary` |
+| `WHISPER_CPP_MODEL` | `model` |
+| `VTEXT_HOST` | `host` |
+| `VTEXT_PORT` | `port` |
+| `VTEXT_WORKERS` | `workers` |
+| `VTEXT_MODELS_DIR` | `models_dir` |
+| `VTEXT_SERVER_URL` | `server_url`（客户端） |
+| `VTEXT_FORMAT` | `default_format`（客户端） |
+| `VTEXT_LANGUAGE` | `default_language`（客户端） |
+| `VTEXT_MODEL` | `default_model`（客户端） |
 
 ---
 
