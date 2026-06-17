@@ -169,9 +169,10 @@ def _router():
 
     @router.get("/health")
     async def health():
+        from importlib.metadata import version as pkg_version
         return {
             "status": "ok",
-            "version": "0.1.0",
+            "version": pkg_version("vtext"),
             "uptime": int(time.time() - _start_time),
             "workers": {
                 "total": _config.workers,
