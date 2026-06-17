@@ -8,3 +8,4 @@
 | [api.md](./api.md) | REST API 端点、请求/响应格式、SSE 协议 |
 | [architecture.md](./architecture.md) | 关键架构决策记录（ADR）及权衡分析 |
 | [deployment.md](./deployment.md) | Docker、systemd 部署指南及配置文件参考 |
+| [models.md](./models.md) | 模型选择指南、实测对比、中文识别建议 |

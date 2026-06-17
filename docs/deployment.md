@@ -162,8 +162,8 @@ vtext video.mp4 -o output.txt
 ### 场景 2：远程服务器
 
 ```sh
-# 服务器端
-vtext-server --host 0.0.0.0 --model large-v3
+# 服务器端（中文内容需 small 及以上模型）
+vtext-server --host 0.0.0.0 --model small
 
 # 本地客户端
 export VTEXT_SERVER_URL=http://192.168.1.100:8000
