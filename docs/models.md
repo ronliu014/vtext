@@ -24,27 +24,30 @@
 |------|-----------|-------------|--------------|------|
 | `base` | 输出英文乱译 | 有明显错字（"与音试别"、"維文字"） | ~5s | ❌ 不可用 |
 | `small` | ✅ 自动检测中文，完全正确 | ✅ 完全正确，3 段时间戳 | ~11s | ✅ 中文最低配置 |
-| `medium` | ⚠️ 输出英文翻译 | ✅ 完全正确，4 段更细时间戳 | ~32s | ✅ 高精度场景 |
+| `medium` | ⚠️ 输出英文翻译 | ✅ 完全正确，4 段更细时间戳 | ~32s | ✅ 高精度，须加 `-l zh` |
+| `large-v3` | ✅ 自动检测中文，完全正确 | ✅ 完全正确，4 段时间戳 | ~65s | ✅ 最高精度 |
 
 **重要注意事项：**
 
 - `base`：不指定语言会把中文误识别为英文，即使指定 `-l zh` 错误率仍高，不可用于中文
 - `small`：**自动检测即可正确识别中文**，无需指定 `-l zh`，推荐中文场景最低配置
-- `medium`：**不指定语言时输出的是英文翻译而非转写**，中文使用必须加 `-l zh`；精度更高，时间戳切分更细，但速度约为 small 的 1/3
+- `medium`：**不指定语言时输出英文翻译**，中文使用必须加 `-l zh`；精度更高，时间戳更细，速度约为 small 的 1/3
+- `large-v3`：**自动检测中文恢复正常**（medium 的翻译问题在 large-v3 中已修正），精度最高，速度约为 small 的 1/6
 
 **中文场景必须使用 small 及以上模型；使用 medium 时务必指定 `-l zh`。**
 
 ### 英文识别
 
-测试音频：JFK 演讲片段（「Ask not what your country can do for you...」）
+测试音频：JFK 演讲片段（「Ask not what your country can do for you...」，11 秒）
 
-| 模型 | 输出 |
-|------|------|
-| `tiny` | `And so, my fellow Americans, ask not what your country can do for you...` |
-| `base` | `And so my fellow Americans ask not what your country can do for you...` |
-| `small` | 与 base 一致，标点略有差异 |
+| 模型 | 输出 | 耗时 |
+|------|------|------|
+| `tiny` | `And so, my fellow Americans, ask not what your country can do for you...` | <1s |
+| `base` | `And so my fellow Americans ask not what your country can do for you...` | ~2s |
+| `small` | 与 base 一致，标点略有差异 | ~4s |
+| `large-v3` | `And so, my fellow Americans, ask not what your country can do for you, ask what you can do for your country.`（逐句切分，3 段） | ~51s |
 
-英文场景下 tiny/base 已足够准确，small 提升有限。
+英文场景下 tiny/base 已足够准确，small 提升有限。large-v3 在标点和断句上更精准，但速度代价显著。
 
 ---
 
