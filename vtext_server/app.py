@@ -1,4 +1,5 @@
 """FastAPI application."""
+import logging
 import queue
 import tempfile
 from contextlib import asynccontextmanager
@@ -14,6 +15,8 @@ from .errors import ModelNotFoundError, TranscriptionError
 from .models import list_available, list_cached, resolve_model_path, download
 from .queue import TranscriptionQueue
 
+logger = logging.getLogger("vtext.app")
+
 _tqueue: TranscriptionQueue | None = None
 _config: ServerConfig | None = None
 
@@ -25,8 +28,10 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        logger.info("worker pool starting workers=%d model=%s", _config.workers, _config.model)
         _tqueue.start()
         yield
+        logger.info("worker pool stopping")
         _tqueue.stop()
 
     app = FastAPI(title="vtext-server", lifespan=lifespan)
@@ -50,13 +55,18 @@ def _router():
         format: str = Form("txt"),
         model: str | None = Form(None),
     ):
+        import time as _time
+        t0 = _time.monotonic()
+
         # Validate format
         if format not in ("txt", "srt", "vtt"):
             raise HTTPException(400, "format must be txt, srt, or vtt")
 
         # Check file size
         content = await file.read()
-        if len(content) > _config.max_file_size:
+        file_size = len(content)
+        if file_size > _config.max_file_size:
+            logger.warning("rejected oversized file filename=%s size=%d", file.filename, file_size)
             raise HTTPException(413, f"File exceeds {_config.max_file_size // 1024 // 1024}MB limit")
 
         # Write to temp file, decompress if needed
@@ -72,6 +82,7 @@ def _router():
             tmp.close()
         except Exception as e:
             tmp_path.unlink(missing_ok=True)
+            logger.error("failed to process upload filename=%s error=%s", file.filename, e)
             raise HTTPException(400, f"Failed to process uploaded file: {e}")
 
         # Validate model exists
@@ -88,6 +99,7 @@ def _router():
         except queue.Full:
             tmp_path.unlink(missing_ok=True)
             size = _tqueue.queue_size()
+            logger.warning("queue full size=%d filename=%s", size, file.filename)
             raise HTTPException(
                 status_code=429,
                 detail={
@@ -99,6 +111,13 @@ def _router():
                 },
             )
 
+        elapsed = _time.monotonic() - t0
+        logger.info(
+            "job queued job_id=%s filename=%s size=%d encoding=%s language=%s model=%s "
+            "format=%s position=%d elapsed=%.3fs",
+            job_id, file.filename, file_size, encoding or "none",
+            language or "auto", model or "default", format, position, elapsed,
+        )
         return {"job_id": job_id, "status": "queued", "position": position}
 
     @router.get("/jobs/{job_id}/stream")

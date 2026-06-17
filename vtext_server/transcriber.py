@@ -1,12 +1,16 @@
 """whisper.cpp subprocess wrapper."""
 import json
+import logging
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import List
 
 from vtext_common.types import Segment, TranscriptionResult
 from .errors import DependencyError, TranscriptionError
+
+logger = logging.getLogger("vtext.transcriber")
 
 
 def transcribe(
@@ -35,22 +39,27 @@ def transcribe(
         cmd += ["--language", language]
 
     try:
+        logger.debug("whisper cmd=%s", " ".join(cmd))
+        t0 = time.monotonic()
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=3600,
         )
+        elapsed = time.monotonic() - t0
     except subprocess.TimeoutExpired as e:
         raise TranscriptionError("whisper.cpp timed out") from e
     except FileNotFoundError as e:
         raise DependencyError(f"whisper.cpp binary not found: {binary}") from e
 
     if result.returncode != 0:
+        logger.error("whisper exited code=%d stderr=%s", result.returncode, result.stderr[:200])
         raise TranscriptionError(
             f"whisper.cpp exited with code {result.returncode}",
         )
 
+    logger.debug("whisper finished elapsed=%.1fs", elapsed)
     return _parse_output(output_json, source=wav_path.name)
 
 
