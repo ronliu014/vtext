@@ -106,6 +106,25 @@ class TestTranscribe:
         )
         assert resp.status_code == 201
 
+    def test_bad_zstd_data_returns_400(self, client):
+        resp = client.post(
+            "/transcribe",
+            data={"format": "txt", "encoding": "zstd"},
+            files={"file": ("audio.wav.zst", b"not valid zstd", "application/octet-stream")},
+        )
+        assert resp.status_code == 400
+
+    def test_model_not_found_returns_404(self, client, tmp_path, mock_queue):
+        from vtext_server.errors import ModelNotFoundError
+        with patch("vtext_server.app.resolve_model_path",
+                   side_effect=ModelNotFoundError("Model 'large' not found")):
+            resp = client.post(
+                "/transcribe",
+                data={"format": "txt", "model": "large"},
+                files={"file": ("audio.wav", b"data", "application/octet-stream")},
+            )
+        assert resp.status_code == 404
+
 
 class TestJobStatus:
     def test_existing_job(self, client):
