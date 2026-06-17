@@ -1,0 +1,16 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "f6a7b8c9",
+  "seq": 5,
+  "ts": "2026-06-17T14:05:00Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.logs.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "lines": 100,
+    "level": "INFO",
+    "since": "2026-06-17T13:00:00Z"
+  }
+}

@@ -1,0 +1,2 @@
+# Keeps the c2s/ (client → server) directory in git.
+# Only the client writes message files here. See ../PROTOCOL.md §1.

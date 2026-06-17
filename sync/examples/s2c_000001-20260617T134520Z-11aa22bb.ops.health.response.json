@@ -1,0 +1,18 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "11aa22bb",
+  "seq": 1,
+  "ts": "2026-06-17T13:45:20Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.health.response",
+  "in_reply_to": "a1b2c3d4",
+  "expects_reply": false,
+  "payload": {
+    "status": "ok",
+    "uptime_seconds": 11667,
+    "workers": { "total": 2, "busy": 0 },
+    "queue": { "size": 0, "max": 16 },
+    "model": { "loaded": "small" }
+  }
+}
