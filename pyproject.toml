@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "vtext"
+version = "0.1.0"
+description = "Audio/video transcription with client-server architecture"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+dependencies = [
+    "requests>=2.31.0",
+    "click>=8.1.0",
+    "zstandard>=0.21.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "python-multipart>=0.0.6",
+    "sse-starlette>=1.6.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.24.0",
+    "ruff>=0.0.280",
+]
+full = ["vtext[server]"]
+
+[project.scripts]
+vtext = "vtext_client.__main__:main"
+vtext-server = "vtext_server.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["vtext_client*", "vtext_server*", "vtext_common*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
