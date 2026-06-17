@@ -1,0 +1,48 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "b071bc4b",
+  "seq": 2,
+  "ts": "2026-06-17T15:07:17Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.notice",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "severity": "low",
+    "category": "handoff",
+    "issue_id": "progress-no-intermediate",
+    "summary": "转录进度只有 0 和 100、无中间值,客户端进度条长时间停在 0% 像卡死。此问题转交服务器端处理(客户端侧无法验证核心转录路径)。",
+    "handoff_reason": "修复涉及服务器核心转录路径(transcriber.py 的 whisper.cpp 调用),客户端开发机没有 whisper.cpp 二进制,无法实测验证。前两个已修问题(language-auto-detect、busy-workers-metric)已在仓库,本条交由服务器侧实现并验证。",
+    "symptom": "用户运行 `vtext <file>`,进度条显示 `Transcribing [----] 0%` 长时间不动,误以为卡死;实际转录正常,完成时直接跳到 100% 并写出结果文件。",
+    "root_cause": {
+      "file": "vtext_server/worker.py",
+      "detail": "worker_loop 仅在任务开始时隐式 progress=0、在 transcribe() 返回后设 progress=100,中间没有任何进度更新。transcribe() 内部用 subprocess.run() 一次性阻塞执行 whisper.cpp,期间不读取其输出,因此拿不到中间进度。",
+      "related_file": "vtext_server/transcriber.py"
+    },
+    "current_behavior": "progress 字段在整个转录过程中恒为 0,直到任务结束跳到 100。SSE/轮询接口(GET /jobs/{id}/stream、GET /jobs/{id})据此返回 progress=0。",
+    "proposed_options": [
+      {
+        "option": "A-coarse",
+        "risk": "low",
+        "approach": "不改 subprocess 结构,只在 worker_loop 里增加粗粒度阶段进度:如入队后 5%、whisper 启动前 10%、完成 100%。进度条至少会动,但非真实百分比。",
+        "pros": "改动小、不触碰核心转录调用、易验证。",
+        "cons": "不是真实进度,长音频中段仍停在某个固定值。"
+      },
+      {
+        "option": "B-streaming",
+        "risk": "medium-high",
+        "approach": "将 transcribe() 的 subprocess.run() 改为 Popen 流式读取 whisper.cpp 输出(whisper-cli 会打印形如 `whisper_print_progress_callback: progress = NN%` 的行;注意当前命令带了 --no-prints,需调整),实时解析百分比并通过回调写入共享 jobs[job_id].progress。",
+        "pros": "真实进度,体验最好。",
+        "cons": "改服务器唯一的转录路径;需处理 Popen 管道死锁(stdout/stderr 同时读)、不同 whisper.cpp 版本的进度输出格式差异、--no-prints 与进度输出的取舍、超时与异常路径。务必先在服务器用真实 whisper.cpp 实测,确保不破坏转录本身。",
+        "notes": "建议加降级保护:进度解析失败时回退为仅 0/100,不影响转录结果。"
+      }
+    ],
+    "recommendation": "若追求稳妥优先选 A;若要真实进度选 B 并务必在服务器实测。无论哪种,进度仅为体验优化,绝不能因此影响转录正确性。",
+    "requested_reply": "请回一条 ops.notice 或 ops.ack,告知选用的方案(A/B)与落地的 commit;若选 B,附上服务器 whisper.cpp 的版本与进度输出实际格式,便于客户端侧对齐进度条显示。",
+    "context": {
+      "whisper_command_currently": "whisper-cli --model <m> --file <wav> --output-json --output-file <out> --threads <n> --no-prints --language <auto|code>",
+      "server_whisper_binary_unknown_to_client": true
+    }
+  }
+}
