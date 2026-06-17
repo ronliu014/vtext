@@ -75,40 +75,20 @@ models_dir = "~/.cache/vtext/models"
 
 ### systemd 用户级服务（推荐，开机自启）
 
-```sh
-mkdir -p ~/.config/systemd/user/
-```
-
-创建 `~/.config/systemd/user/vtext.service`：
-
-```ini
-[Unit]
-Description=vtext transcription server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/path/to/vtext
-ExecStart=/usr/bin/python3 -m vtext_server
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-```
+使用项目自带的管理脚本：
 
 ```sh
-systemctl --user daemon-reload
-systemctl --user enable vtext
-systemctl --user start vtext
-
-# 允许服务在登出后继续运行
-loginctl enable-linger $USER
-
-# 查看状态 / 日志
-systemctl --user status vtext
-journalctl --user -u vtext -f
+scripts/vtext-service.sh install   # 安装并 enable 服务（开机自启）
+scripts/vtext-service.sh start     # 启动
+scripts/vtext-service.sh stop      # 停止
+scripts/vtext-service.sh restart   # 重启
+scripts/vtext-service.sh status    # 查看 systemd 状态 + health API 信息
+scripts/vtext-service.sh logs 100  # 查看最近 100 行日志（默认 50）
+scripts/vtext-service.sh follow    # 实时追踪日志
+scripts/vtext-service.sh uninstall # 停止并删除服务
 ```
+
+脚本会自动执行 `loginctl enable-linger`，确保服务在用户登出后继续运行。
 
 ### 客户端配置
 
@@ -170,6 +150,17 @@ vtext-server --host 0.0.0.0 --port 9000            # 监听所有网卡
 vtext-server --model large-v3                       # 指定模型
 vtext-server --workers 4                            # 并发 worker 数（默认 = CPU 核心数）
 vtext-server --binary /opt/whisper.cpp/main         # 指定 whisper.cpp 路径
+vtext-server --log-dir /var/log/vtext               # 日志目录（不填则只输出到控制台）
+vtext-server --log-level DEBUG                      # 日志级别：DEBUG / INFO / WARNING / ERROR
+```
+
+日志文件按天切割，保留 30 天，文件名格式：`vtext-server.YYYY-MM-DD.log`。
+
+日志目录也可在 `server.toml` 中配置：
+
+```toml
+log_dir = "~/.local/share/vtext/logs"
+log_level = "INFO"
 ```
 
 ---
