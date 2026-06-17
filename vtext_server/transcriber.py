@@ -1,16 +1,21 @@
 """whisper.cpp subprocess wrapper."""
 import json
 import logging
+import re
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
-from typing import List
+from typing import Callable, List
 
 from vtext_common.types import Segment, TranscriptionResult
 from .errors import DependencyError, TranscriptionError
 
 logger = logging.getLogger("vtext.transcriber")
+
+# Matches: "whisper_print_progress_callback: progress =  50%"
+_PROGRESS_RE = re.compile(r"progress\s*=\s*(\d+)%")
 
 
 def transcribe(
@@ -19,8 +24,14 @@ def transcribe(
     model_path: Path,
     language: str | None = None,
     threads: int = 4,
+    progress_callback: Callable[[int], None] | None = None,
 ) -> TranscriptionResult:
-    """Run whisper.cpp on a WAV file and return a TranscriptionResult."""
+    """Run whisper.cpp on a WAV file and return a TranscriptionResult.
+
+    progress_callback(pct: int) is called whenever whisper reports a new
+    percentage. Falls back gracefully if progress parsing fails — transcription
+    result is never affected by callback errors.
+    """
     _check_binary(binary)
 
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -33,34 +44,57 @@ def transcribe(
         "--output-json",
         "--output-file", str(output_json.with_suffix("")),
         "--threads", str(threads),
-        "--no-prints",
+        "--print-progress",   # enables "progress = NN%" lines on stderr
     ]
-    # whisper.cpp defaults to "en" when --language is omitted, which forces
-    # English transcription regardless of the actual audio language. Pass
-    # "auto" so it detects the spoken language and transcribes in it.
     cmd += ["--language", language if language else "auto"]
 
     try:
         logger.debug("whisper cmd=%s", " ".join(cmd))
         t0 = time.monotonic()
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=3600,
         )
-        elapsed = time.monotonic() - t0
-    except subprocess.TimeoutExpired as e:
-        raise TranscriptionError("whisper.cpp timed out") from e
     except FileNotFoundError as e:
+        output_json.unlink(missing_ok=True)
         raise DependencyError(f"whisper.cpp binary not found: {binary}") from e
 
-    if result.returncode != 0:
-        logger.error("whisper exited code=%d stderr=%s", result.returncode, result.stderr[:200])
+    stderr_lines: list[str] = []
+
+    def _read_stderr() -> None:
+        for line in proc.stderr:
+            line = line.rstrip()
+            stderr_lines.append(line)
+            if progress_callback:
+                m = _PROGRESS_RE.search(line)
+                if m:
+                    try:
+                        progress_callback(int(m.group(1)))
+                    except Exception:
+                        pass  # callback errors must never affect transcription
+
+    stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+    stderr_thread.start()
+
+    try:
+        proc.stdout.read()          # drain stdout (whisper writes nothing there)
+        stderr_thread.join(timeout=3610)
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise TranscriptionError("whisper.cpp timed out")
+
+    elapsed = time.monotonic() - t0
+
+    if proc.returncode != 0:
+        stderr_tail = "\n".join(stderr_lines[-10:])
+        logger.error("whisper exited code=%d stderr=%s", proc.returncode, stderr_tail[:300])
         raise TranscriptionError(
-            f"whisper.cpp exited with code {result.returncode}",
+            f"whisper.cpp exited with code {proc.returncode}",
         )
 
     logger.debug("whisper finished elapsed=%.1fs", elapsed)

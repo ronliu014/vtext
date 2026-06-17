@@ -38,12 +38,21 @@ def worker_loop(task_queue, jobs, progress, config: ServerConfig) -> None:
         try:
             model_path = resolve_model_path(model_name, config)
 
+            def _update_progress(pct: int) -> None:
+                try:
+                    j = dict(jobs[job_id])
+                    j["progress"] = pct
+                    jobs[job_id] = j
+                except Exception:
+                    pass
+
             result = transcribe(
                 wav_path=wav_path,
                 binary=config.whisper_binary,
                 model_path=model_path,
                 language=language,
                 threads=config.threads,
+                progress_callback=_update_progress,
             )
 
             formatted = format_output(result.segments, fmt)

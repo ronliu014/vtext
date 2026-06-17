@@ -73,6 +73,28 @@ class TestParseOutput:
         assert not json_file.exists()  # still cleaned up
 
 
+def _make_fake_popen(json_content: str, returncode: int = 0, stderr_lines: list[str] | None = None):
+    """Build a mock Popen that writes the output JSON and streams stderr lines."""
+    import io
+
+    def _side_effect(cmd, **kwargs):
+        # Write output JSON that whisper.cpp would produce
+        for i, arg in enumerate(cmd):
+            if arg == "--output-file" and i + 1 < len(cmd):
+                out_path = Path(cmd[i + 1] + ".json")
+                out_path.write_text(json_content, encoding="utf-8")
+                break
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = returncode
+        mock_proc.stdout = io.StringIO("")
+        mock_proc.stderr = io.StringIO("\n".join(stderr_lines or []))
+        mock_proc.wait.return_value = returncode
+        return mock_proc
+
+    return _side_effect
+
+
 class TestTranscribe:
     def _make_json_data(self):
         return json.dumps({
@@ -88,51 +110,28 @@ class TestTranscribe:
         model = tmp_path / "model.bin"
         model.touch()
 
-        json_content = self._make_json_data()
-
-        def fake_run(cmd, **kwargs):
-            # Write the output JSON that whisper.cpp would produce
-            # whisper.cpp writes to <output_file>.json
-            for i, arg in enumerate(cmd):
-                if arg == "--output-file" and i + 1 < len(cmd):
-                    out_path = Path(cmd[i + 1] + ".json")
-                    out_path.write_text(json_content, encoding="utf-8")
-                    break
-            mock = MagicMock()
-            mock.returncode = 0
-            return mock
-
         with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
-            with patch("subprocess.run", side_effect=fake_run):
+            with patch("subprocess.Popen", side_effect=_make_fake_popen(self._make_json_data())):
                 result = transcribe(wav, "whisper-cli", model, language="en", threads=2)
 
         assert result.language == "en"
         assert len(result.segments) == 1
 
     def test_defaults_to_auto_language(self, tmp_path):
-        """When no language is given, whisper must receive --language auto,
-        otherwise whisper.cpp defaults to English."""
+        """When no language is given, whisper must receive --language auto."""
         wav = tmp_path / "audio.wav"
         wav.touch()
         model = tmp_path / "model.bin"
         model.touch()
 
-        json_content = self._make_json_data()
         captured_cmd = []
 
-        def fake_run(cmd, **kwargs):
+        def fake_popen(cmd, **kwargs):
             captured_cmd.extend(cmd)
-            for i, arg in enumerate(cmd):
-                if arg == "--output-file" and i + 1 < len(cmd):
-                    out_path = Path(cmd[i + 1] + ".json")
-                    out_path.write_text(json_content, encoding="utf-8")
-                    break
-            mock = MagicMock()
-            mock.returncode = 0
-            return mock
+            return _make_fake_popen(self._make_json_data())(cmd, **kwargs)
 
         with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
-            with patch("subprocess.run", side_effect=fake_run):
+            with patch("subprocess.Popen", side_effect=fake_popen):
                 transcribe(wav, "whisper-cli", model, language=None, threads=2)
 
         assert "--language" in captured_cmd
@@ -146,27 +145,40 @@ class TestTranscribe:
         model = tmp_path / "model.bin"
         model.touch()
 
-        json_content = self._make_json_data()
         captured_cmd = []
 
-        def fake_run(cmd, **kwargs):
+        def fake_popen(cmd, **kwargs):
             captured_cmd.extend(cmd)
-            for i, arg in enumerate(cmd):
-                if arg == "--output-file" and i + 1 < len(cmd):
-                    out_path = Path(cmd[i + 1] + ".json")
-                    out_path.write_text(json_content, encoding="utf-8")
-                    break
-            mock = MagicMock()
-            mock.returncode = 0
-            return mock
+            return _make_fake_popen(self._make_json_data())(cmd, **kwargs)
 
         with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
-            with patch("subprocess.run", side_effect=fake_run):
+            with patch("subprocess.Popen", side_effect=fake_popen):
                 transcribe(wav, "whisper-cli", model, language="zh", threads=2)
 
         assert "--language" in captured_cmd
         lang_idx = captured_cmd.index("--language")
         assert captured_cmd[lang_idx + 1] == "zh"
+
+    def test_progress_callback_called(self, tmp_path):
+        """progress_callback receives parsed percentages from stderr."""
+        wav = tmp_path / "audio.wav"
+        wav.touch()
+        model = tmp_path / "model.bin"
+        model.touch()
+
+        stderr = [
+            "whisper_print_progress_callback: progress =  25%",
+            "whisper_print_progress_callback: progress =  50%",
+            "whisper_print_progress_callback: progress = 100%",
+        ]
+        received = []
+
+        with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
+            with patch("subprocess.Popen",
+                       side_effect=_make_fake_popen(self._make_json_data(), stderr_lines=stderr)):
+                transcribe(wav, "whisper-cli", model, progress_callback=received.append)
+
+        assert received == [25, 50, 100]
 
     def test_binary_not_found_raises(self, tmp_path):
         wav = tmp_path / "audio.wav"
@@ -184,12 +196,9 @@ class TestTranscribe:
         model = tmp_path / "model.bin"
         model.touch()
 
-        mock_result = MagicMock()
-        mock_result.returncode = 1
-        mock_result.stderr = "error output"
-
         with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
-            with patch("subprocess.run", return_value=mock_result):
+            with patch("subprocess.Popen",
+                       side_effect=_make_fake_popen("{}", returncode=1)):
                 with pytest.raises(TranscriptionError):
                     transcribe(wav, "whisper-cli", model)
 
@@ -199,7 +208,13 @@ class TestTranscribe:
         model = tmp_path / "model.bin"
         model.touch()
 
+        import io
+        mock_proc = MagicMock()
+        mock_proc.stdout = io.StringIO("")
+        mock_proc.stderr = io.StringIO("")
+        mock_proc.wait.side_effect = subprocess.TimeoutExpired("cmd", 3600)
+
         with patch("shutil.which", return_value="/usr/bin/whisper-cli"):
-            with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 3600)):
+            with patch("subprocess.Popen", return_value=mock_proc):
                 with pytest.raises(TranscriptionError, match="timed out"):
                     transcribe(wav, "whisper-cli", model)

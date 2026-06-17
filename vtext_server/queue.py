@@ -86,7 +86,11 @@ class TranscriptionQueue:
         return self._task_queue.qsize()
 
     def busy_workers(self) -> int:
-        return sum(
-            1 for job in self._jobs.values()
-            if job.get("status") == JobStatus.PROCESSING
-        )
+        try:
+            processing = sum(
+                1 for job in self._jobs.values()
+                if job.get("status") == JobStatus.PROCESSING
+            )
+        except Exception:
+            return 0
+        return min(processing, len(self._workers))
