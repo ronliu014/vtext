@@ -335,3 +335,43 @@ class TestWorkerLoop:
 
         assert result_jobs["job1"]["status"] == JobStatus.ERROR
         assert "unexpected crash" in result_jobs["job1"]["error"]
+
+
+class TestBusyWorkers:
+    """busy_workers() must count jobs in PROCESSING state, not alive processes."""
+
+    def _make_queue(self, jobs: dict, n_workers: int):
+        """Build a TranscriptionQueue without spawning real processes."""
+        from vtext_server.queue import TranscriptionQueue
+
+        q = TranscriptionQueue.__new__(TranscriptionQueue)
+        q._jobs = jobs
+        q._workers = [object() for _ in range(n_workers)]
+        return q
+
+    def test_idle_reports_zero(self):
+        jobs = {
+            "a": {"status": JobStatus.QUEUED},
+            "b": {"status": JobStatus.DONE},
+        }
+        q = self._make_queue(jobs, n_workers=2)
+        assert q.busy_workers() == 0
+
+    def test_counts_processing_jobs(self):
+        jobs = {
+            "a": {"status": JobStatus.PROCESSING},
+            "b": {"status": JobStatus.QUEUED},
+            "c": {"status": JobStatus.PROCESSING},
+        }
+        q = self._make_queue(jobs, n_workers=4)
+        assert q.busy_workers() == 2
+
+    def test_capped_at_worker_count(self):
+        # More PROCESSING entries than workers must not exceed the pool size.
+        jobs = {k: {"status": JobStatus.PROCESSING} for k in "abcd"}
+        q = self._make_queue(jobs, n_workers=2)
+        assert q.busy_workers() == 2
+
+    def test_no_jobs_reports_zero(self):
+        q = self._make_queue({}, n_workers=2)
+        assert q.busy_workers() == 0

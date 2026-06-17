@@ -86,4 +86,20 @@ class TranscriptionQueue:
         return self._task_queue.qsize()
 
     def busy_workers(self) -> int:
-        return sum(1 for p in self._workers if p.is_alive())
+        """Count workers actually processing a job.
+
+        Counts jobs currently in PROCESSING state in the shared jobs dict,
+        capped at the worker pool size. This reflects real activity, unlike
+        counting alive processes (which are always alive when idle).
+        """
+        try:
+            processing = sum(
+                1
+                for j in self._jobs.values()
+                if j.get("status") == JobStatus.PROCESSING
+            )
+        except Exception:
+            # Manager dict can raise if the manager is shutting down.
+            return 0
+        return min(processing, len(self._workers))
+
