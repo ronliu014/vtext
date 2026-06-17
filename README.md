@@ -49,7 +49,7 @@ pip install -e ".[full,dev]"
 
 ```sh
 # 终端 1：启动 server
-vtext-server --model base
+vtext-server --model small
 
 # 终端 2：转写
 vtext video.mp4                        # 输出到终端
