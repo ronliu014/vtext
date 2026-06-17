@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "vtext"
@@ -21,6 +21,7 @@ server = [
     "uvicorn[standard]>=0.23.0",
     "python-multipart>=0.0.6",
     "sse-starlette>=1.6.0",
+    "zstandard>=0.21.0",
 ]
 dev = [
     "pytest>=7.4.0",
