@@ -16,7 +16,7 @@ class ServerConfig:
     workers: int = field(default_factory=multiprocessing.cpu_count)
     queue_max: int = 16
     whisper_binary: str = "whisper-cli"
-    model: str = "base"
+    model: str = "small"
     threads: int = 4
     models_dir: Path = field(
         default_factory=lambda: Path.home() / ".cache" / "vtext" / "models"

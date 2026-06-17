@@ -18,7 +18,7 @@ class TestServerConfigDefaults:
         cfg = load_server_config(config_file=Path("/nonexistent/path.toml"))
         assert cfg.host == "127.0.0.1"
         assert cfg.port == 8000
-        assert cfg.model == "base"
+        assert cfg.model == "small"
         assert cfg.whisper_binary == "whisper-cli"
         assert cfg.threads == 4
         assert cfg.max_file_size == 500 * 1024 * 1024
