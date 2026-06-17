@@ -29,7 +29,7 @@ def extract_wav(input_path: Path) -> Path:
         "-f", "wav",
         str(out),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         out.unlink(missing_ok=True)
         raise VtextClientError(

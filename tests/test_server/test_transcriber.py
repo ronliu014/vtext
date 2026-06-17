@@ -36,7 +36,7 @@ class TestParseOutput:
             "result": {"language": "en"},
         }
         json_file = tmp_path / "output.json"
-        json_file.write_text(json.dumps(data))
+        json_file.write_text(json.dumps(data), encoding="utf-8")
 
         result = _parse_output(json_file, source="test.wav")
 
@@ -52,7 +52,7 @@ class TestParseOutput:
     def test_empty_transcription(self, tmp_path):
         data = {"transcription": [], "result": {"language": "en"}}
         json_file = tmp_path / "output.json"
-        json_file.write_text(json.dumps(data))
+        json_file.write_text(json.dumps(data), encoding="utf-8")
 
         result = _parse_output(json_file, source="test.wav")
         assert result.segments == []
@@ -60,14 +60,14 @@ class TestParseOutput:
 
     def test_invalid_json_raises(self, tmp_path):
         json_file = tmp_path / "output.json"
-        json_file.write_text("not json")
+        json_file.write_text("not json", encoding="utf-8")
 
         with pytest.raises(TranscriptionError, match="Failed to parse"):
             _parse_output(json_file, source="test.wav")
 
     def test_cleanup_on_parse_error(self, tmp_path):
         json_file = tmp_path / "output.json"
-        json_file.write_text("bad json")
+        json_file.write_text("bad json", encoding="utf-8")
         with pytest.raises(TranscriptionError):
             _parse_output(json_file, source="test.wav")
         assert not json_file.exists()  # still cleaned up
@@ -96,7 +96,7 @@ class TestTranscribe:
             for i, arg in enumerate(cmd):
                 if arg == "--output-file" and i + 1 < len(cmd):
                     out_path = Path(cmd[i + 1] + ".json")
-                    out_path.write_text(json_content)
+                    out_path.write_text(json_content, encoding="utf-8")
                     break
             mock = MagicMock()
             mock.returncode = 0

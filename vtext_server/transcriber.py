@@ -39,6 +39,8 @@ def transcribe(
             cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=3600,
         )
     except subprocess.TimeoutExpired as e:
@@ -65,7 +67,7 @@ def _check_binary(binary: str) -> None:
 
 def _parse_output(json_path: Path, source: str) -> TranscriptionResult:
     try:
-        data = json.loads(json_path.read_text())
+        data = json.loads(json_path.read_text(encoding="utf-8"))
     except Exception as e:
         raise TranscriptionError(f"Failed to parse whisper.cpp output: {e}") from e
     finally:

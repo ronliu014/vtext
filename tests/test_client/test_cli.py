@@ -96,7 +96,7 @@ class TestTranscribeFile:
             r = runner.invoke(cli, [str(input_file), "-o", str(out_file)])
 
         assert r.exit_code == 0
-        assert out_file.read_text() == "Transcribed text"
+        assert out_file.read_text(encoding="utf-8") == "Transcribed text"
 
     def test_queue_full_exits_with_1(self, runner, tmp_path):
         input_file = tmp_path / "audio.mp3"

@@ -9,7 +9,7 @@ from vtext_client.config import ClientConfig, load_client_config
 
 
 def write_toml(path: Path, content: str) -> Path:
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
     return path
 
 

@@ -47,7 +47,7 @@ class TestProcessOne:
                                     fmt="txt", language=None, model=None)
 
         assert out_path == input_file.with_suffix(".txt")
-        assert out_path.read_text() == "Transcribed"
+        assert out_path.read_text(encoding="utf-8") == "Transcribed"
 
     def test_cleans_up_wav(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
@@ -99,7 +99,7 @@ class TestProcessOne:
             out_path = _process_one(input_file, server="http://localhost:8000",
                                     fmt="srt", language=None, model=None)
 
-        assert "00:00:00,000" in out_path.read_text()
+        assert "00:00:00,000" in out_path.read_text(encoding="utf-8")
 
     def test_srt_output_extension(self, tmp_path):
         input_file = tmp_path / "clip.mp4"
