@@ -101,7 +101,6 @@ def _transcribe_file(
 
         click.echo(f"Job {job_id} queued. Waiting for result...", err=True)
 
-        is_tty = sys.stderr.isatty()
         with click.progressbar(
             length=100, label="Transcribing", file=sys.stderr
         ) as bar:
@@ -109,11 +108,8 @@ def _transcribe_file(
 
             def on_progress(pct: int) -> None:
                 nonlocal last
-                if pct > last:
-                    bar.update(pct - last)
-                    last = pct
-                    if not is_tty:
-                        click.echo(f"Transcribing: {pct}%", err=True)
+                bar.update(pct - last)
+                last = pct
 
             result = stream_progress(server, job_id, on_progress=on_progress)
             bar.update(100 - last)
