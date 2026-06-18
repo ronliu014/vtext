@@ -31,9 +31,11 @@ def _build_cli():
                   help="Override server default model")
     @click.option("-j", "--jobs", default=cfg.default_jobs, show_default=True,
                   help="Parallel jobs for batch processing")
+    @click.option("--simplify", is_flag=True, default=False,
+                  help="Convert Traditional Chinese output to Simplified Chinese")
     @click.option("--check-server", is_flag=True, default=False,
                   help="Check server health and exit")
-    def _cli(input, server, output, fmt, language, model, jobs, check_server):
+    def _cli(input, server, output, fmt, language, model, jobs, simplify, check_server):
         """Transcribe audio/video files using vtext-server."""
         if check_server:
             _do_check_server(server)
@@ -49,11 +51,13 @@ def _build_cli():
 
         if input_path.is_dir():
             batch_transcribe(input_path, server=server, fmt=fmt,
-                             language=language, model=model, jobs=jobs)
+                             language=language, model=model, jobs=jobs,
+                             simplify=simplify)
             return
 
         _transcribe_file(input_path, server=server, output=output,
-                         fmt=fmt, language=language, model=model)
+                         fmt=fmt, language=language, model=model,
+                         simplify=simplify)
 
     return _cli
 
@@ -68,6 +72,7 @@ def _transcribe_file(
     fmt: str,
     language: str | None,
     model: str | None,
+    simplify: bool = False,
 ) -> None:
     wav_path = None
     upload_path = None
@@ -110,6 +115,8 @@ def _transcribe_file(
             bar.update(100 - last)
 
         text = result.formatted or format_output(result.segments, fmt)
+        if simplify:
+            text = _to_simplified(text)
         output_path = _resolve_output_path(input_path, output, fmt)
 
         if output_path:
@@ -169,3 +176,17 @@ def _resolve_output_path(
     else:
         # output is a full file path
         return output_path
+
+
+def _to_simplified(text: str) -> str:
+    """Convert Traditional Chinese to Simplified Chinese using opencc."""
+    try:
+        import opencc
+        return opencc.OpenCC("t2s").convert(text)
+    except ImportError:
+        click.echo(
+            "Warning: opencc-python-reimplemented not installed. "
+            "Run: pip install opencc-python-reimplemented",
+            err=True,
+        )
+        return text

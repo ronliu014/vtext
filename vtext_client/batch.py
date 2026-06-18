@@ -21,6 +21,7 @@ def batch_transcribe(
     language: str | None,
     model: str | None,
     jobs: int,
+    simplify: bool = False,
 ) -> None:
     files = [
         f for f in sorted(directory.rglob("*"))
@@ -41,7 +42,7 @@ def batch_transcribe(
         futures = {
             pool.submit(
                 _process_one, f, text_dir=text_dir, server=server, fmt=fmt,
-                language=language, model=model
+                language=language, model=model, simplify=simplify
             ): f
             for f in files
         }
@@ -61,6 +62,7 @@ def _process_one(
     fmt: str,
     language: str | None,
     model: str | None,
+    simplify: bool = False,
 ) -> Path:
     wav_path = None
     upload_path = None
@@ -77,6 +79,12 @@ def _process_one(
         result = stream_progress(server, job_id)
         from vtext_common.formats import format_output
         text = result.formatted or format_output(result.segments, fmt)
+        if simplify:
+            try:
+                import opencc
+                text = opencc.OpenCC("t2s").convert(text)
+            except ImportError:
+                pass
 
         # Save to text_dir with input filename + .fmt extension
         out_path = text_dir / f"{input_path.stem}.{fmt}"

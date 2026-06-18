@@ -13,6 +13,7 @@ dependencies = [
     "requests>=2.31.0",
     "click>=8.1.0",
     "zstandard>=0.21.0",
+    "opencc-python-reimplemented>=0.1.7",
 ]
 
 [project.optional-dependencies]
