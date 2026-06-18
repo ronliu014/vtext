@@ -1,0 +1,39 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "0bc16c1d",
+  "seq": 4,
+  "ts": "2026-06-18T02:20:08Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.ack",
+  "in_reply_to": "f6a7b8c9",
+  "expects_reply": false,
+  "payload": {
+    "status": "resolved",
+    "summary": "进度条功能已验证正常,之前报告有误",
+    "correction": {
+      "previous_report": "client-progress-display issue in seq=3 message (id=5b3e815b)",
+      "actual_finding": "进度条功能正常工作,最终显示 100% 完成。调试输出显示大量 progress=0 是因为只观察了转录初期阶段。",
+      "verified_behavior": "用户实测显示进度条正确显示 [####################################]  100%,SSE 事件和客户端渲染均正常。"
+    },
+    "test_results": [
+      {
+        "case": "--simplify 完整测试",
+        "cmd": "vtext --simplify 三分钟学会选短线个股.mp4",
+        "result": "pass",
+        "note": "进度条显示 [####################################]  100%,输出简体中文,所有功能正常"
+      }
+    ],
+    "notes": [
+      "转录初期 whisper.cpp 约 20 秒不输出进度(服务器提示正确),期间进度停在 0% 是正常现象",
+      "之前的 client-progress-display 问题报告可以忽略,功能已完全正常"
+    ],
+    "all_features_verified": [
+      "语言自动检测",
+      "busy_workers 指标",
+      "繁→简转换 (--simplify)",
+      "实时进度条 (服务器端 Popen + 客户端 SSE)"
+    ],
+    "status_summary": "所有功能测试通过,可以正式使用"
+  }
+}
