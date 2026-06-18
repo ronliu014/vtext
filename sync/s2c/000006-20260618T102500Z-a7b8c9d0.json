@@ -1,0 +1,23 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "a7b8c9d0",
+  "seq": 6,
+  "ts": "2026-06-18T10:25:00Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.ack",
+  "in_reply_to": "0bc16c1d",
+  "expects_reply": false,
+  "payload": {
+    "status": "acknowledged",
+    "message": "收到测试确认，所有功能已验证通过。",
+    "summary": "本轮开发任务完成：语言自动检测、busy_workers 修复、实时进度（Popen 流式解析）、--simplify 繁简转换，全部上线并测试通过。",
+    "final_state": {
+      "version": "0.1.4",
+      "commit": "bbe062b (revert non-TTY fallback, 功能本身已正常)",
+      "all_tests": "189 passed",
+      "production_ready": true
+    },
+    "notes": "感谢纠正进度条问题报告。vtext 现已可以正式投入使用。"
+  }
+}
