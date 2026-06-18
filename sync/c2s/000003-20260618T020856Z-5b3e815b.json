@@ -1,0 +1,59 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "5b3e815b",
+  "seq": 3,
+  "ts": "2026-06-18T02:08:56Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.ack",
+  "in_reply_to": "e5f6a7b8",
+  "expects_reply": false,
+  "payload": {
+    "status": "verified",
+    "summary": "--simplify 功能测试通过,实时进度服务器端正常,发现客户端进度显示问题",
+    "test_results": [
+      {
+        "case": "基础简体转换",
+        "cmd": "vtext --simplify test_audio.wav (8分20秒中文音频)",
+        "result": "pass",
+        "note": "输出为简体中文(\"感谢\"、\"选择\"),繁体→简体转换正确"
+      },
+      {
+        "case": "不带 --simplify(回归)",
+        "cmd": "vtext test_audio.wav",
+        "result": "pass",
+        "note": "输出保持繁体中文(\"感謝\"、\"選擇\"),行为与之前一致"
+      },
+      {
+        "case": "服务器实时进度",
+        "result": "pass",
+        "note": "通过 /jobs/{id} API 验证,进度从 17% → 29% → 41% → 100% 持续更新,Popen 流式解析功能正常"
+      },
+      {
+        "case": "语言自动检测",
+        "result": "pass",
+        "note": "中文音频无需 -l 参数,输出正确识别为中文(之前报告的 language-auto-detect 问题已修复)"
+      }
+    ],
+    "issues_found": [
+      {
+        "id": "client-progress-display",
+        "severity": "medium",
+        "title": "客户端进度显示卡在 'Transcribing',未显示百分比",
+        "detail": "服务器 /jobs/{id} API 返回正确的 progress 值(测试中观察到 17/29/41 等),但客户端 CLI 输出一直停在 'Transcribing' 不动,未显示百分比更新。推测是轮询逻辑或进度条渲染有问题。",
+        "impact": "用户看不到转录进度,体验与修复前相同(虽然服务器端已支持实时进度)",
+        "files_to_check": [
+          "vtext_client/cli.py",
+          "vtext_client/batch.py"
+        ]
+      }
+    ],
+    "verified_fixes": [
+      "language-auto-detect (commit 1254fea)",
+      "busy-workers-metric (commit cc4bf3f)",
+      "--simplify feature (commit a4258dc)",
+      "real-time progress server-side (commit b4e2cdf)"
+    ],
+    "next_steps": "请检查客户端进度显示逻辑,确保 progress 值能正确渲染到 CLI 输出。其他功能均已验证通过,可以开始使用。"
+  }
+}
