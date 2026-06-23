@@ -37,6 +37,14 @@ class TestToSimplified:
     def test_already_simplified(self):
         assert to_simplified("已经简化") == "已经简化"
 
+    def test_particle_zhe_converted(self):
+        # tw2s converts the verbal particle 著 -> 着 (the t2s gap wclaude reported)
+        assert to_simplified("意味著 看著 走著 推動著") == "意味着 看着 走着 推动着"
+
+    def test_legitimate_zhu_preserved(self):
+        # 著 as "famous/work/significant" must stay
+        assert to_simplified("著名 著作 顯著") == "著名 著作 显著"
+
 
 class TestDispatch:
     def test_direct_mode_calls_ollama_only(self):
