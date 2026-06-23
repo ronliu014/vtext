@@ -1,0 +1,134 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "3ff4aec7",
+  "seq": 6,
+  "ts": "2026-06-23T03:07:47Z",
+  "from": "client",
+  "to": "server",
+  "type": "test.refine.response",
+  "in_reply_to": "1b1bae34",
+  "expects_reply": false,
+  "payload": {
+    "verdict": "PASS",
+    "summary": "A/B/C three test groups all passed. The three-file refine product design (raw/clean/summary) meets expectations. auto fallback verified when Ollama unreachable.",
+    "environment": {
+      "client": "Windows 11, conda env App (Python 3.13), vtext 0.1.5 (editable)",
+      "ffmpeg": "N-121425-g0bc54cddb1-20251012",
+      "server": "http://192.168.0.122:8000 (version 0.1.5, model small, llm workers 1/1, llm queue 0/16)",
+      "ollama": "http://192.168.0.33:7866 (default refine model qwen3.5:9b)"
+    },
+    "A_full_pipeline": {
+      "input_file": "E:\\projects\\my_app\\temp\\三分钟学会选短线个股.mp4",
+      "input_size_mb": 74,
+      "command": "vtext_client <file> -f txt --server http://192.168.0.122:8000 --ollama http://192.168.0.33:7866 --refine-mode auto",
+      "products": {
+        "_raw.txt": "6983 bytes (raw ASR, traditional Chinese + ASR errors)",
+        "_clean.txt": "7137 bytes (corrected + simplified, preserves order, no reorg)",
+        "_summary.md": "5685 bytes (structured markdown, 5 main sections)"
+      },
+      "three_files_complete": true,
+      "exit_code": 0,
+      "warnings": null,
+      "server_job_id": "2f0401a7"
+    },
+    "B_refine_only_dir": {
+      "input_dir": "E:\\projects\\my_app\\temp\\bak\\refine_test_20260623\\B_refine_only_dir",
+      "input_file": "sample.txt (= A._raw.txt, 6983 bytes)",
+      "command": "vtext_client --refine-only <dir> --server http://192.168.0.122:8000 --ollama http://192.168.0.33:7866 --refine-mode auto",
+      "products": {
+        "sample_clean.txt": "7224 bytes",
+        "sample_summary.md": "5477 bytes"
+      },
+      "files_refined_count": 1,
+      "exit_code": 0,
+      "warnings": null
+    },
+    "C_three_modes": {
+      "direct": {
+        "command": "vtext_client --refine-only C_direct/sample.txt --refine-mode direct --ollama http://192.168.0.33:7866",
+        "products": {
+          "sample_clean.txt": "7208 bytes",
+          "sample_summary.md": "4471 bytes"
+        },
+        "exit_code": 0,
+        "warnings": null,
+        "mode": "direct (Ollama direct)"
+      },
+      "server": {
+        "command": "vtext_client --refine-only C_server/sample.txt --refine-mode server --server http://192.168.0.122:8000",
+        "products": {
+          "sample_clean.txt": "7222 bytes",
+          "sample_summary.md": "4210 bytes"
+        },
+        "exit_code": 0,
+        "warnings": null,
+        "mode": "server (server relay, LLM queue concurrent=1, serial)",
+        "server_side_note": "lclaude should see 2 llm jobs (correct + structure) in tail logs"
+      },
+      "auto_fallback": {
+        "command": "vtext_client --refine-only C_auto/sample.txt --refine-mode auto --ollama http://192.168.5.1:9 (intentionally unreachable) --server http://192.168.0.122:8000",
+        "products": {
+          "sample_clean.txt": "7137 bytes",
+          "sample_summary.md": "5211 bytes"
+        },
+        "exit_code": 0,
+        "warnings": null,
+        "mode": "auto, Ollama unreachable -> fallback to server relay",
+        "fallback_verified": true,
+        "fallback_note": "Ollama 192.168.5.1:9 is unreachable, so direct connect must fail. Successful output proves the auto mode successfully fell back to server relay. Both LLM calls (correct + structure) succeeded via server.",
+        "server_side_note": "lclaude should see 2 llm jobs (correct + structure) coming from C_auto fallback"
+      }
+    },
+    "quality_samples": {
+      "core_corrections_all_5_cleans_correct": [
+        "戶深300 → 沪深 300",
+        "傻戶 → 散户 (3+ occurrences)",
+        "傳小好掉頭 → 船小好掉头",
+        "雞油股 → 绩优股"
+      ],
+      "other_corrections_all_5_correct": [
+        "護身兩式 → 沪深两市",
+        "福音 → 收益",
+        "開獎 → 开课",
+        "上漾 → 上扬",
+        "油資 → 游资",
+        "郵高到低 → 由高到低",
+        "重藏 → 重仓",
+        "滾動倉 → 滚动仓"
+      ],
+      "simplified_consistency": "A / B / C_auto all fully simplified. C_direct / C_server have minor residual 著 (4-6 occurrences 意味著 should be 意味着).",
+      "summary_structure": "5 main sections: 课程背景与核心理念 / 股性与涨停基因 (涨停基因复制法) / 具体选股步骤 (涨幅榜初筛 + 三维条件 [趋势/均线/成交量] + 量比 + 换手率) / 最终确认与交易纪律 / 课程预告. Heading levels #/##/### clear.",
+      "summary_data_fidelity": "All key numbers preserved: 4000+ companies, 3800→4800 points, 26%, 4%, 6%, >=8%, 60-day MA, volume ratio 2-5/5-10, turnover 3%-10%, <=10 stocks. No fabricated content.",
+      "raw_preservation": "clean strictly preserves raw paragraph order, no reorg/deletion. summary structured from clean.",
+      "three_file_design_value": "Three-stage pipeline clear for fault isolation: raw bad = ASR issue; clean bad but raw OK = correction issue; summary bad but clean OK = structuring issue."
+    },
+    "md5_all_distinct": {
+      "A_clean": "DC947C9A3737BFDB64D0332C6D2C9F1D (7137 bytes)",
+      "B_clean": "51B802195386FDDACF0D1B7DE2A2BA1C (7224 bytes)",
+      "C_direct_clean": "730EBE891D68F0DD00FE0664405F22D8 (7208 bytes)",
+      "C_server_clean": "607DB14E9C97E0203BD17F830FAB18DC (7222 bytes)",
+      "C_auto_clean": "3B1DC5C052AE449546F64428EF6D60A0 (7137 bytes)",
+      "note": "A and C_auto have same byte count (7137) by coincidence. MD5 differs -> content differs (temperature 0.4 non-determinism). All 5 cleans are distinct, no prompt cache anomaly."
+    },
+    "issues_observed": [
+      {
+        "issue": "主力 vs 阻力 homophone mishearing not corrected in clean stage",
+        "raw_mishear_locations": 2,
+        "examples": [
+          "raw 阻力在股价连续放量上涨之后 should be 主力在股价连续放量上涨之后",
+          "raw 中长期的阻力去运作 should be 中长期的**主力**去运作"
+        ],
+        "frequency_across_5_cleans": "4 of 5 cleans (A, C_direct, C_server, C_auto) keep BOTH 阻力 errors. Only B correctly fixed the 2nd one (中长期的阻力 -> 主力). This is the most stable correction miss.",
+        "suggestion": "Add explicit homophone contrast list (主力/阻力/助力/...) to correct_text system prompt, or add a post-correction sanity pass."
+      },
+      {
+        "issue": "C_direct / C_server clean has minor residual traditional 著 (should be 着)",
+        "frequency": "minor, 4-6 occurrences 意味著 should be 意味着",
+        "note": "A / B / C_auto have all been unified. C_direct / C_server have a few leftovers, likely random LLM output variance."
+      }
+    ],
+    "warnings_or_errors": "No refine warnings. 4 refine-only all exit 0. Full pipeline A exit 0. Server side /llm/chat relay called 4 times in C_server (2 jobs) + C_auto fallback (2 jobs), serial via LLM queue (concurrent=1).",
+    "auto_fallback_verification": "PASS. --refine-mode auto + --ollama http://192.168.5.1:9 (unreachable) + --server http://192.168.0.122:8000 successfully produced sample_clean (7137B) and sample_summary (5211B). Direct Ollama must fail, so success proves server relay fallback works.",
+    "overall_conclusion": "The three-file refine product design fully meets expectations. Three-stage pipeline is clearly isolatable (raw ASR / clean corrected+simplified full text / summary structured markdown). Correction and simplification quality is high (4 core correction examples + 8 common corrections all correct in 5 cleans). Strict order preservation. Summary data integrity 100%, no fabrication. Refine on by default is user-friendly, failure warn-and-skip does not break transcription. Three modes (direct/server/auto) all work, auto fallback reliable. One improvement point: clean stage homophone mishearing correction rate (currently 1/10, B 1/2 is best), recommend adding homophone contrast list in prompt."
+  }
+}
