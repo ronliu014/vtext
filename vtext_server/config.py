@@ -26,6 +26,11 @@ class ServerConfig:
     job_ttl: int = 600
     log_dir: Path | None = None
     log_level: str = "INFO"
+    # LLM relay (generic Ollama proxy queue); independent from transcription
+    ollama_url: str = "http://localhost:11434"
+    llm_workers: int = 1  # strict FIFO serialization for orderly forwarding
+    llm_queue_max: int = 16
+    llm_timeout: int = 300
 
 
 def load_server_config(config_file: Path | None = None) -> ServerConfig:
@@ -64,6 +69,14 @@ def load_server_config(config_file: Path | None = None) -> ServerConfig:
         cfg.log_dir = Path(toml["log_dir"]).expanduser()
     if "log_level" in toml:
         cfg.log_level = str(toml["log_level"]).upper()
+    if "ollama_url" in toml:
+        cfg.ollama_url = str(toml["ollama_url"])
+    if "llm_workers" in toml:
+        cfg.llm_workers = int(toml["llm_workers"])
+    if "llm_queue_max" in toml:
+        cfg.llm_queue_max = int(toml["llm_queue_max"])
+    if "llm_timeout" in toml:
+        cfg.llm_timeout = int(toml["llm_timeout"])
 
     # Env var layer (overrides TOML)
     if v := os.environ.get("WHISPER_CPP_BIN"):
@@ -82,5 +95,13 @@ def load_server_config(config_file: Path | None = None) -> ServerConfig:
         cfg.log_dir = Path(v).expanduser()
     if v := os.environ.get("VTEXT_LOG_LEVEL"):
         cfg.log_level = v.upper()
+    if v := os.environ.get("OLLAMA_URL"):
+        cfg.ollama_url = v
+    if v := os.environ.get("VTEXT_LLM_WORKERS"):
+        cfg.llm_workers = int(v)
+    if v := os.environ.get("VTEXT_LLM_QUEUE_MAX"):
+        cfg.llm_queue_max = int(v)
+    if v := os.environ.get("VTEXT_LLM_TIMEOUT"):
+        cfg.llm_timeout = int(v)
 
     return cfg

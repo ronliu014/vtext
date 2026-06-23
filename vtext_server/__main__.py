@@ -12,6 +12,10 @@ from .config import load_server_config
 @click.option("--model", default=None, help="Model name or path (overrides config)")
 @click.option("--binary", default=None, help="whisper.cpp binary path (overrides config)")
 @click.option("--workers", default=None, type=int, help="Worker processes (overrides config)")
+@click.option("--ollama-url", default=None,
+              help="Ollama URL for the LLM relay (overrides config)")
+@click.option("--llm-workers", default=None, type=int,
+              help="LLM relay worker processes (overrides config; default 1 = serialized FIFO)")
 @click.option("--config", "config_file", default=None, type=click.Path(),
               help="Path to server TOML config file")
 @click.option("--log-dir", default=None, type=click.Path(),
@@ -19,7 +23,8 @@ from .config import load_server_config
 @click.option("--log-level", default=None,
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
               help="Log level (overrides config)")
-def main(host, port, model, binary, workers, config_file, log_dir, log_level):
+def main(host, port, model, binary, workers, ollama_url, llm_workers,
+         config_file, log_dir, log_level):
     """Start vtext transcription server."""
     from pathlib import Path
     from .logging_setup import setup_logging
@@ -37,6 +42,10 @@ def main(host, port, model, binary, workers, config_file, log_dir, log_level):
         cfg.whisper_binary = binary
     if workers is not None:
         cfg.workers = workers
+    if ollama_url is not None:
+        cfg.ollama_url = ollama_url
+    if llm_workers is not None:
+        cfg.llm_workers = llm_workers
     if log_dir is not None:
         cfg.log_dir = Path(log_dir)
     if log_level is not None:
@@ -47,8 +56,9 @@ def main(host, port, model, binary, workers, config_file, log_dir, log_level):
     import logging
     logger = logging.getLogger("vtext.server")
     logger.info(
-        "starting vtext-server host=%s port=%d workers=%d model=%s log_dir=%s",
-        cfg.host, cfg.port, cfg.workers, cfg.model,
+        "starting vtext-server host=%s port=%d workers=%d model=%s "
+        "llm_workers=%d ollama_url=%s log_dir=%s",
+        cfg.host, cfg.port, cfg.workers, cfg.model, cfg.llm_workers, cfg.ollama_url,
         str(cfg.log_dir) if cfg.log_dir else "console-only",
     )
 

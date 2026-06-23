@@ -57,7 +57,7 @@ class TestProcessOne:
                 model=None,
             )
 
-        assert out_path == text_dir / "clip.txt"
+        assert out_path == text_dir / "clip_raw.txt"
         assert out_path.read_text(encoding="utf-8") == "Transcribed"
 
     def test_cleans_up_wav(self, tmp_path):
@@ -199,7 +199,7 @@ class TestProcessOne:
                 model=None,
             )
 
-        assert out_path == tmp_path / "text" / "season1" / "clip.txt"
+        assert out_path == tmp_path / "text" / "season1" / "clip_raw.txt"
         assert out_path.read_text(encoding="utf-8") == "nested"
 
 

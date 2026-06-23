@@ -24,3 +24,12 @@ class QueueFullError(VtextClientError):
 
 class TimeoutError(VtextClientError):
     """Request timed out."""
+
+
+class RefineError(VtextClientError):
+    """LLM refinement (correction / structuring) failed.
+
+    Non-fatal by design: a transcription that already succeeded should still
+    produce its raw output even when the refine step fails. Callers catch this
+    to warn-and-skip rather than abort.
+    """

@@ -9,6 +9,7 @@ from ._batchprogress import BatchProgress, make_callback
 from .api import submit_job, stream_progress
 from .audio import extract_wav, maybe_compress
 from .errors import VtextClientError
+from .refine import refine_text, to_simplified
 
 SUPPORTED_EXTENSIONS = {
     ".mp4",
@@ -35,6 +36,11 @@ def batch_transcribe(
     model: str | None,
     jobs: int,
     simplify: bool = False,
+    refine: bool = False,
+    ollama_url: str = "http://localhost:11434",
+    refine_model: str = "qwen3.5:9b",
+    refine_mode: str = "auto",
+    llm_timeout: int = 300,
 ) -> None:
     # Output dir is <directory>/text; create it before scanning so we can
     # exclude it from the input set (avoid reprocessing our own outputs).
@@ -75,6 +81,11 @@ def batch_transcribe(
                     language=language,
                     model=model,
                     simplify=simplify,
+                    refine=refine,
+                    ollama_url=ollama_url,
+                    refine_model=refine_model,
+                    refine_mode=refine_mode,
+                    llm_timeout=llm_timeout,
                     idx=idx,
                     on_progress=make_callback(prog, idx),
                 )
@@ -105,6 +116,11 @@ def _process_one(
     language: str | None,
     model: str | None,
     simplify: bool = False,
+    refine: bool = False,
+    ollama_url: str = "http://localhost:11434",
+    refine_model: str = "qwen3.5:9b",
+    refine_mode: str = "auto",
+    llm_timeout: int = 300,
     idx: int = 0,
     on_progress=None,
 ) -> Path:
@@ -128,19 +144,37 @@ def _process_one(
 
         text = result.formatted or format_output(result.segments, fmt)
         if simplify:
-            try:
-                import opencc
-
-                text = opencc.OpenCC("t2s").convert(text)
-            except ImportError:
-                pass
+            text = to_simplified(text)
 
         # Preserve the input's directory hierarchy under text/:
-        # <dir>/sub/a.mp4 -> <dir>/text/sub/a.<fmt>
+        # <dir>/sub/a.mp4 -> <dir>/text/sub/a_raw.<fmt>
         rel = input_path.relative_to(base_dir)
-        out_path = text_dir / rel.with_suffix(f".{fmt}")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_dir = text_dir / rel.parent
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = rel.stem
+        out_path = out_dir / f"{stem}_raw.{fmt}"
         out_path.write_text(text, encoding="utf-8")
+
+        # Refine: <stem>_clean.txt + <stem>_summary.md co-located with the raw.
+        # Non-fatal: warn + skip on any failure (raw transcript is already saved).
+        if refine:
+            try:
+                plain = result.text or format_output(result.segments, "txt")
+                clean, summary = refine_text(
+                    plain,
+                    ollama_url=ollama_url,
+                    model=refine_model,
+                    server_url=server,
+                    mode=refine_mode,
+                    timeout=llm_timeout,
+                )
+                (out_dir / f"{stem}_clean.txt").write_text(clean, encoding="utf-8")
+                (out_dir / f"{stem}_summary.md").write_text(summary, encoding="utf-8")
+            except Exception as e:  # noqa: BLE001 - non-fatal refine step
+                click.echo(
+                    f"  Warning: refine skipped for {input_path.name}: {e}", err=True
+                )
+
         return out_path
     finally:
         if wav_path:

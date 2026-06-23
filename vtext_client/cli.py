@@ -8,7 +8,8 @@ from .api import check_health, submit_job, stream_progress
 from .audio import extract_wav, maybe_compress
 from .batch import batch_transcribe
 from .config import load_client_config
-from .errors import QueueFullError, ServerConnectionError, VtextClientError
+from .errors import QueueFullError, RefineError, ServerConnectionError, VtextClientError
+from .refine import refine_text, to_simplified
 from vtext_common.formats import format_output
 
 
@@ -21,22 +22,45 @@ def _build_cli():
     @click.option("--server", default=cfg.server_url, show_default=True,
                   help="vtext-server URL")
     @click.option("-o", "--output", type=click.Path(), default=None,
-                  help="Output file or directory (default: text/ subdir next to input; use '-' for stdout)")
+                  help="Raw transcript output path/dir (default: <stem>_raw.<fmt> "
+                       "next to input; use '-' for stdout)")
     @click.option("-f", "--format", "fmt",
                   type=click.Choice(["txt", "srt", "vtt"]),
                   default=cfg.default_format, show_default=True)
     @click.option("-l", "--language", default=cfg.default_language,
                   help="Language code, e.g. en, zh")
     @click.option("-m", "--model", default=cfg.default_model,
-                  help="Override server default model")
+                  help="Override server default transcription model")
     @click.option("-j", "--jobs", default=cfg.default_jobs, show_default=True,
                   help="Parallel jobs for batch processing")
     @click.option("--simplify", is_flag=True, default=False,
-                  help="Convert Traditional Chinese output to Simplified Chinese")
+                  help="Convert raw transcript Traditional -> Simplified (opt-in; "
+                       "refine already yields a simplified clean text)")
     @click.option("--check-server", is_flag=True, default=False,
                   help="Check server health and exit")
-    def _cli(input, server, output, fmt, language, model, jobs, simplify, check_server):
-        """Transcribe audio/video files using vtext-server."""
+    # --- refine (post-transcription LLM correction + structuring) ---
+    @click.option("--no-refine", is_flag=True, default=False,
+                  help="Disable refine (no clean/summary produced)")
+    @click.option("--refine-only", is_flag=True, default=False,
+                  help="Skip transcription; refine existing .txt file(s) instead")
+    @click.option("--ollama", "ollama_url", default=cfg.ollama_url, show_default=True,
+                  help="Ollama URL for direct refine (fallback: server relay)")
+    @click.option("--refine-model", default=cfg.ollama_model, show_default=True,
+                  help="Ollama model for refine")
+    @click.option("--refine-mode",
+                  type=click.Choice(["auto", "direct", "server"]),
+                  default=cfg.refine_mode, show_default=True,
+                  help="auto=direct-then-relay; direct=Ollama only; server=relay only")
+    def _cli(input, server, output, fmt, language, model, jobs, simplify,
+             check_server, no_refine, refine_only, ollama_url, refine_model,
+             refine_mode):
+        """Transcribe audio/video and (by default) refine into clean + summary.
+
+        Default pipeline per source file:
+          <stem>_raw.<fmt>  - original ASR transcript
+          <stem>_clean.txt  - corrected + simplified full text
+          <stem>_summary.md - structured reorganization
+        """
         if check_server:
             _do_check_server(server)
             return
@@ -49,15 +73,27 @@ def _build_cli():
             click.echo(f"Error: {input_path} does not exist.", err=True)
             sys.exit(1)
 
+        refine = cfg.refine_enabled and not no_refine
+
+        if refine_only:
+            _refine_only(input_path, server=server, ollama_url=ollama_url,
+                         model=refine_model, mode=refine_mode,
+                         timeout=cfg.llm_timeout)
+            return
+
         if input_path.is_dir():
             batch_transcribe(input_path, server=server, fmt=fmt,
                              language=language, model=model, jobs=jobs,
-                             simplify=simplify)
+                             simplify=simplify, refine=refine,
+                             ollama_url=ollama_url, refine_model=refine_model,
+                             refine_mode=refine_mode, llm_timeout=cfg.llm_timeout)
             return
 
         _transcribe_file(input_path, server=server, output=output,
                          fmt=fmt, language=language, model=model,
-                         simplify=simplify)
+                         simplify=simplify, refine=refine,
+                         ollama_url=ollama_url, refine_model=refine_model,
+                         refine_mode=refine_mode, llm_timeout=cfg.llm_timeout)
 
     return _cli
 
@@ -73,6 +109,11 @@ def _transcribe_file(
     language: str | None,
     model: str | None,
     simplify: bool = False,
+    refine: bool = False,
+    ollama_url: str = "http://localhost:11434",
+    refine_model: str = "qwen3.5:9b",
+    refine_mode: str = "auto",
+    llm_timeout: int = 300,
 ) -> None:
     wav_path = None
     upload_path = None
@@ -116,7 +157,7 @@ def _transcribe_file(
 
         text = result.formatted or format_output(result.segments, fmt)
         if simplify:
-            text = _to_simplified(text)
+            text = to_simplified(text)
         output_path = _resolve_output_path(input_path, output, fmt)
 
         if output_path:
@@ -126,6 +167,29 @@ def _transcribe_file(
         else:
             click.echo(text)
 
+        # Refine: produce <stem>_clean.txt + <stem>_summary.md next to source.
+        # Non-fatal: a failure warns and skips; the raw transcript is already saved.
+        if refine and output_path is not None:
+            try:
+                click.echo("Refining: correcting + structuring...", err=True)
+                plain = result.text or format_output(result.segments, "txt")
+                clean, summary = refine_text(
+                    plain,
+                    ollama_url=ollama_url,
+                    model=refine_model,
+                    server_url=server,
+                    mode=refine_mode,
+                    timeout=llm_timeout,
+                )
+                clean_path = input_path.parent / f"{input_path.stem}_clean.txt"
+                summary_path = input_path.parent / f"{input_path.stem}_summary.md"
+                clean_path.write_text(clean, encoding="utf-8")
+                summary_path.write_text(summary, encoding="utf-8")
+                click.echo(f"Saved to {clean_path}", err=True)
+                click.echo(f"Saved to {summary_path}", err=True)
+            except RefineError as e:
+                click.echo(f"Warning: refine skipped: {e}", err=True)
+
     except (ServerConnectionError, VtextClientError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -134,6 +198,69 @@ def _transcribe_file(
             wav_path.unlink(missing_ok=True)
         if upload_path and upload_path != wav_path:
             upload_path.unlink(missing_ok=True)
+
+
+def _refine_only(
+    input_path: Path,
+    *,
+    server: str,
+    ollama_url: str,
+    model: str,
+    mode: str,
+    timeout: int,
+) -> None:
+    """Refine existing .txt file(s) without transcribing."""
+    if input_path.is_dir():
+        files = [
+            f for f in sorted(input_path.rglob("*.txt"))
+            if not f.name.endswith("_clean.txt")
+        ]
+        if not files:
+            click.echo(f"No .txt files to refine in {input_path}", err=True)
+            return
+        click.echo(f"Refining {len(files)} file(s)...", err=True)
+        for f in files:
+            _refine_one_file(
+                f, server=server, ollama_url=ollama_url, model=model,
+                mode=mode, timeout=timeout,
+            )
+        return
+
+    _refine_one_file(
+        input_path, server=server, ollama_url=ollama_url, model=model,
+        mode=mode, timeout=timeout,
+    )
+
+
+def _refine_one_file(
+    txt_path: Path,
+    *,
+    server: str,
+    ollama_url: str,
+    model: str,
+    mode: str,
+    timeout: int,
+) -> None:
+    """Refine one .txt -> <stem>_clean.txt + <stem>_summary.md next to it."""
+    try:
+        click.echo(f"Refining {txt_path.name}...", err=True)
+        plain = txt_path.read_text(encoding="utf-8")
+        clean, summary = refine_text(
+            plain,
+            ollama_url=ollama_url,
+            model=model,
+            server_url=server,
+            mode=mode,
+            timeout=timeout,
+        )
+        clean_path = txt_path.parent / f"{txt_path.stem}_clean.txt"
+        summary_path = txt_path.parent / f"{txt_path.stem}_summary.md"
+        clean_path.write_text(clean, encoding="utf-8")
+        summary_path.write_text(summary, encoding="utf-8")
+        click.echo(f"Saved to {clean_path}", err=True)
+        click.echo(f"Saved to {summary_path}", err=True)
+    except RefineError as e:
+        click.echo(f"Warning: refine skipped for {txt_path.name}: {e}", err=True)
 
 
 def _do_check_server(server: str) -> None:
@@ -154,39 +281,20 @@ def _do_check_server(server: str) -> None:
 def _resolve_output_path(
     input_path: Path, output: str | None, fmt: str
 ) -> Path | None:
-    """Resolve output path based on user input and defaults.
+    """Resolve the RAW transcript output path.
 
     Rules:
-    - If output is None: create text/ subdir next to input, use input stem + .fmt
-    - If output is a directory: use that dir + input stem + .fmt
-    - If output is a file path: use it as-is
-    - If output is "-": return None (stdout)
+    - "-" -> None (stdout)
+    - None -> <input.parent>/<stem>_raw.<fmt>  (next to source, marked original)
+    - directory -> <dir>/<stem>_raw.<fmt>
+    - full file path -> used as-is
     """
     if output == "-":
         return None
     if output is None:
-        # Default: create text/ subdir in input's directory
-        text_dir = input_path.parent / "text"
-        return text_dir / f"{input_path.stem}.{fmt}"
+        return input_path.parent / f"{input_path.stem}_raw.{fmt}"
 
     output_path = Path(output)
     if output_path.is_dir() or (not output_path.suffix and not output_path.exists()):
-        # output is a directory (existing or looks like a dir)
-        return output_path / f"{input_path.stem}.{fmt}"
-    else:
-        # output is a full file path
-        return output_path
-
-
-def _to_simplified(text: str) -> str:
-    """Convert Traditional Chinese to Simplified Chinese using opencc."""
-    try:
-        import opencc
-        return opencc.OpenCC("t2s").convert(text)
-    except ImportError:
-        click.echo(
-            "Warning: opencc-python-reimplemented not installed. "
-            "Run: pip install opencc-python-reimplemented",
-            err=True,
-        )
-        return text
+        return output_path / f"{input_path.stem}_raw.{fmt}"
+    return output_path

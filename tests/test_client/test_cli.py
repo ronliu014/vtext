@@ -82,8 +82,8 @@ class TestTranscribeFile:
         assert r.exit_code == 0
         assert "Hello world" in r.output
 
-    def test_default_outputs_to_text_subdir(self, runner, tmp_path):
-        """Test that default behavior creates text/ subdir."""
+    def test_default_output_next_to_source(self, runner, tmp_path):
+        """Default raw output is <stem>_raw.<fmt> next to the source file."""
         input_file = tmp_path / "audio.mp3"
         input_file.touch()
         wav = tmp_path / "audio.wav"
@@ -97,11 +97,11 @@ class TestTranscribeFile:
             r = runner.invoke(cli, [str(input_file)])
 
         assert r.exit_code == 0
-        text_dir = tmp_path / "text"
-        assert text_dir.exists()
-        out_file = text_dir / "audio.txt"
+        out_file = tmp_path / "audio_raw.txt"
         assert out_file.exists()
         assert out_file.read_text(encoding="utf-8") == "Hello world"
+        # raw output no longer goes to a text/ subdir by default
+        assert not (tmp_path / "text").exists()
 
     def test_writes_to_output_file(self, runner, tmp_path):
         input_file = tmp_path / "audio.mp3"

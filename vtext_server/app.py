@@ -11,28 +11,33 @@ from sse_starlette.sse import EventSourceResponse
 
 from vtext_common.types import JobStatus
 from .config import ServerConfig
-from .errors import ModelNotFoundError, TranscriptionError
+from .errors import ModelNotFoundError
 from .models import list_available, list_cached, resolve_model_path, download
+from .llm_queue import LlmQueue
 from .queue import TranscriptionQueue
 
 logger = logging.getLogger("vtext.app")
 
 _tqueue: TranscriptionQueue | None = None
+_llm_queue: LlmQueue | None = None
 _config: ServerConfig | None = None
 
 
 def create_app(config: ServerConfig | None = None) -> FastAPI:
-    global _config, _tqueue
+    global _config, _tqueue, _llm_queue
     _config = config or ServerConfig()
     _tqueue = TranscriptionQueue(_config)
+    _llm_queue = LlmQueue(_config)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         logger.info("worker pool starting workers=%d model=%s", _config.workers, _config.model)
         _tqueue.start()
+        _llm_queue.start()
         yield
         logger.info("worker pool stopping")
         _tqueue.stop()
+        _llm_queue.stop()
 
     app = FastAPI(title="vtext-server", lifespan=lifespan)
     app.include_router(_router())
@@ -167,6 +172,84 @@ def _router():
             "position": job["position"],
         }
 
+    # ---- LLM relay: generic Ollama proxy via a serialized queue ----
+    @router.post("/llm/chat", status_code=201)
+    async def llm_chat(body: dict):
+        model = body.get("model")
+        messages = body.get("messages")
+        if not model or not isinstance(messages, list):
+            raise HTTPException(
+                400, "body must include string 'model' and list 'messages'"
+            )
+        options = body.get("options")
+        try:
+            job_id, position = _llm_queue.submit(model, messages, options)
+        except queue.Full:
+            size = _llm_queue.queue_size()
+            logger.warning("llm queue full size=%d", size)
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "QueueFull",
+                    "message": "LLM relay queue is full",
+                    "queue_size": size,
+                    "position": size,
+                    "estimated_wait_seconds": size * 60,
+                },
+            )
+        logger.info(
+            "llm job queued job_id=%s model=%s msgs=%d position=%d",
+            job_id, model, len(messages), position,
+        )
+        return {"job_id": job_id, "status": "queued", "position": position}
+
+    @router.get("/llm/chat/{job_id}/stream")
+    async def llm_chat_stream(job_id: str):
+        if _llm_queue.get_job(job_id) is None:
+            raise HTTPException(404, f"Job {job_id!r} not found")
+
+        async def event_generator():
+            import json
+            while True:
+                job = _llm_queue.get_job(job_id)
+                if job is None:
+                    break
+                status = job["status"]
+                if status == JobStatus.QUEUED:
+                    yield {
+                        "event": "queued",
+                        "data": json.dumps({"position": job["position"]}),
+                    }
+                elif status == JobStatus.PROCESSING:
+                    yield {
+                        "event": "processing",
+                        "data": json.dumps({"progress": job["progress"]}),
+                    }
+                elif status == JobStatus.DONE:
+                    yield {"event": "done", "data": json.dumps({"result": job["result"]})}
+                    break
+                elif status == JobStatus.ERROR:
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({"message": job["error"]}),
+                    }
+                    break
+                await asyncio.sleep(0.5)
+
+        return EventSourceResponse(event_generator())
+
+    @router.get("/llm/chat/{job_id}")
+    async def llm_chat_status(job_id: str):
+        job = _llm_queue.get_job(job_id)
+        if job is None:
+            raise HTTPException(404, f"Job {job_id!r} not found")
+        return {
+            "job_id": job_id,
+            "status": job["status"],
+            "progress": job["progress"],
+            "position": job["position"],
+        }
+
     @router.get("/health")
     async def health():
         from importlib.metadata import version as pkg_version
@@ -185,6 +268,16 @@ def _router():
             "model": {
                 "loaded": _config.model,
                 "switching": False,
+            },
+            "llm": {
+                "workers": {
+                    "total": _config.llm_workers,
+                    "busy": _llm_queue.busy_workers(),
+                },
+                "queue": {
+                    "size": _llm_queue.queue_size(),
+                    "max": _config.llm_queue_max,
+                },
             },
         }
 
