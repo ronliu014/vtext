@@ -1,18 +1,25 @@
-"""One-off driver: full-method knowledge extraction for F:/vtext/input.
+"""Driver: full-method knowledge extraction for a directory of videos.
 
-Reuses vtext_client.batch._process_one (no library changes) but:
-  - selects ONLY *.mp4 (each source folder also has a _music.mp3 we must skip)
-  - sends output to a SEPARATE tree (batch mode normally hardcodes <input>/text)
-  - mirrors the source folder hierarchy under the output root
+Reuses vtext_client.batch._process_one (no library changes) but adds:
+  - selects ONLY *.mp4
+  - sends output to a SEPARATE tree (mirrors the source folder hierarchy)
   - resumes: skips a video whose _raw/_clean/_summary all already exist
+  - server-relay refine by default (works when local Ollama is down)
 
 Per video, under OUTPUT/<same-folder>/:
   <stem>_raw.<fmt>   - original ASR transcript
   <stem>_clean.txt   - corrected + simplified full text
   <stem>_summary.md  - structured reorganization
+
+Usage:
+  python scripts/batch_extract.py \
+      --input  "F:/downloads/allwin/投资训练营" \
+      --output "F:/downloads/output" \
+      --jobs 2 --refine-mode server
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -23,26 +30,50 @@ from vtext_client.batch import _process_one
 from vtext_client.config import load_client_config
 from vtext_client.errors import VtextClientError
 
-INPUT_ROOT = Path(r"F:\vtext\input")
-OUTPUT_ROOT = Path(r"F:\vtext\output")
-FMT = "txt"
-JOBS = 2            # server has 2 transcription workers
-REFINE_MODE = "server"  # local Ollama is down; use the server LLM relay
-LLM_TIMEOUT = 600
+# Defaults preserve the original douyin run (F:\vtext\input -> F:\vtext\output).
+DEFAULT_INPUT = Path(r"F:\vtext\input")
+DEFAULT_OUTPUT = Path(r"F:\vtext\output")
 
 
-def _already_done(video: Path) -> bool:
-    rel = video.relative_to(INPUT_ROOT)
-    out_dir = OUTPUT_ROOT / rel.parent
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Full-method batch video extraction.")
+    p.add_argument("--input", type=Path, default=DEFAULT_INPUT,
+                   help="Input root directory (recursively scanned for *.mp4).")
+    p.add_argument("--output", type=Path, default=DEFAULT_OUTPUT,
+                   help="Output root; mirrors the input folder hierarchy.")
+    p.add_argument("--fmt", default="txt", choices=["txt", "srt", "vtt"],
+                   help="Raw transcript format.")
+    p.add_argument("--jobs", type=int, default=2,
+                   help="Parallel jobs (match the server's transcription workers).")
+    p.add_argument("--refine-mode", default="server",
+                   choices=["auto", "direct", "server"],
+                   help="LLM refine path; 'server' relays via vtext-server.")
+    p.add_argument("--llm-timeout", type=int, default=600,
+                   help="Per-LLM-call timeout in seconds.")
+    return p.parse_args()
+
+
+def _already_done(video: Path, input_root: Path, output_root: Path, fmt: str) -> bool:
+    rel = video.relative_to(input_root)
+    out_dir = output_root / rel.parent
     stem = rel.stem
     return (
-        (out_dir / f"{stem}_raw.{FMT}").exists()
+        (out_dir / f"{stem}_raw.{fmt}").exists()
         and (out_dir / f"{stem}_clean.txt").exists()
         and (out_dir / f"{stem}_summary.md").exists()
     )
 
 
 def main() -> int:
+    args = _parse_args()
+    input_root: Path = args.input
+    output_root: Path = args.output
+    fmt: str = args.fmt
+
+    if not input_root.is_dir():
+        print(f"FATAL: input dir not found: {input_root}", file=sys.stderr)
+        return 2
+
     cfg = load_client_config()
     server = cfg.server_url
 
@@ -58,14 +89,16 @@ def main() -> int:
         file=sys.stderr,
     )
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
 
-    all_videos = sorted(INPUT_ROOT.rglob("*.mp4"))
-    todo = [v for v in all_videos if not _already_done(v)]
+    all_videos = sorted(input_root.rglob("*.mp4"))
+    todo = [v for v in all_videos if not _already_done(v, input_root, output_root, fmt)]
     skipped = len(all_videos) - len(todo)
     print(
+        f"Input: {input_root}\nOutput: {output_root}\n"
         f"Found {len(all_videos)} mp4; {skipped} already done; "
-        f"{len(todo)} to process with {JOBS} parallel job(s).",
+        f"{len(todo)} to process with {args.jobs} parallel job(s); "
+        f"refine_mode={args.refine_mode}.",
         file=sys.stderr,
     )
     if not todo:
@@ -76,25 +109,25 @@ def main() -> int:
     prog.start()
 
     failures: list[tuple[Path, Exception]] = []
-    with ThreadPoolExecutor(max_workers=JOBS) as pool:
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = {}
         for idx, v in enumerate(todo):
             futures[
                 pool.submit(
                     _process_one,
                     v,
-                    base_dir=INPUT_ROOT,
-                    text_dir=OUTPUT_ROOT,
+                    base_dir=input_root,
+                    text_dir=output_root,
                     server=server,
-                    fmt=FMT,
+                    fmt=fmt,
                     language=cfg.default_language,
                     model=cfg.default_model,
                     simplify=False,
                     refine=True,
                     ollama_url=cfg.ollama_url,
                     refine_model=cfg.ollama_model,
-                    refine_mode=REFINE_MODE,
-                    llm_timeout=LLM_TIMEOUT,
+                    refine_mode=args.refine_mode,
+                    llm_timeout=args.llm_timeout,
                     idx=idx,
                     on_progress=make_callback(prog, idx),
                 )
