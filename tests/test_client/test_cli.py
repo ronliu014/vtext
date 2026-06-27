@@ -207,3 +207,26 @@ class TestBatchMode:
 
         mock_batch.assert_called_once()
         assert r.exit_code == 0
+
+    def test_batch_with_output_dir(self, runner, tmp_path):
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "clip.mp4").touch()
+        output_dir = tmp_path / "output"
+
+        with patch("vtext_client.cli.batch_transcribe") as mock_batch:
+            r = runner.invoke(cli, [str(media_dir), "-o", str(output_dir)])
+
+        assert r.exit_code == 0
+        mock_batch.assert_called_once()
+        assert mock_batch.call_args[1]["output_dir"] == output_dir
+
+    def test_batch_rejects_stdout(self, runner, tmp_path):
+        media_dir = tmp_path / "media"
+        media_dir.mkdir()
+        (media_dir / "clip.mp4").touch()
+
+        r = runner.invoke(cli, [str(media_dir), "-o", "-"])
+
+        assert r.exit_code != 0
+        assert "does not support stdout" in r.output

@@ -354,6 +354,33 @@ class TestBatchTranscribe:
 
         assert processed == ["clip.mp4"]
 
+    def test_custom_output_dir_mirrors_hierarchy(self, tmp_path):
+        sub = tmp_path / "input" / "season1"
+        sub.mkdir(parents=True)
+        (sub / "clip.mp4").touch()
+        output_dir = tmp_path / "output"
+
+        call_kwargs = {}
+
+        def fake_process(path, **kwargs):
+            call_kwargs.update(kwargs)
+            return path.with_suffix(".txt")
+
+        with patch("vtext_client.batch._process_one", side_effect=fake_process):
+            batch_transcribe(
+                tmp_path / "input",
+                output_dir=output_dir,
+                server="http://localhost:8000",
+                fmt="txt",
+                language=None,
+                model=None,
+                jobs=1,
+            )
+
+        # _process_one called with text_dir=output_dir, base_dir=input
+        assert call_kwargs["text_dir"] == output_dir
+        assert call_kwargs["base_dir"] == tmp_path / "input"
+
 
 class TestBatchProgress:
     def test_non_tty_prints_milestones_only(self):

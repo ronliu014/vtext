@@ -41,10 +41,15 @@ def batch_transcribe(
     refine_model: str = "qwen3.5:9b",
     refine_mode: str = "auto",
     llm_timeout: int = 300,
+    output_dir: Path | None = None,
 ) -> None:
-    # Output dir is <directory>/text; create it before scanning so we can
+    # Output dir: when specified, mirror input hierarchy under it; otherwise
+    # default to <directory>/text (backward compat). Create before scanning to
     # exclude it from the input set (avoid reprocessing our own outputs).
-    text_dir = directory / "text"
+    if output_dir is not None:
+        text_dir = output_dir
+    else:
+        text_dir = directory / "text"
     text_dir.mkdir(parents=True, exist_ok=True)
 
     files = [

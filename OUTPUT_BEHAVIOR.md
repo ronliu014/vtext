@@ -32,11 +32,25 @@ vtext video.mp4 -o - | less  # pipe to pager
 
 ## Batch Mode (directory input)
 
-Creates `text/` subdirectory in the input directory and saves all outputs there:
+### Default (no `-o` option)
+Creates `text/` subdirectory in the input directory and preserves input hierarchy:
 ```bash
 vtext ./media/               # processes all media files
                             # → ./media/text/file1.txt
-                            # → ./media/text/file2.txt
+                            # → ./media/text/sub/file2.txt
+```
+
+### Specify output directory (`-o <dir>`)
+Mirrors input directory hierarchy under the specified output root:
+```bash
+vtext ./media/ -o ./output  # → ./output/file1.txt
+                            # → ./output/sub/file2.txt
+```
+
+Example with nested structure:
+```
+Input:  ./media/2023/jan/clip.mp4
+Output: ./output/2023/jan/clip_raw.txt  (hierarchy preserved)
 ```
 
 All output files use the input filename stem + format extension (`.txt`, `.srt`, or `.vtt`).

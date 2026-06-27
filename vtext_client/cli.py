@@ -22,8 +22,9 @@ def _build_cli():
     @click.option("--server", default=cfg.server_url, show_default=True,
                   help="vtext-server URL")
     @click.option("-o", "--output", type=click.Path(), default=None,
-                  help="Raw transcript output path/dir (default: <stem>_raw.<fmt> "
-                       "next to input; use '-' for stdout)")
+                  help="Output path/dir. Single file: default <stem>_raw.<fmt> "
+                       "next to input (use '-' for stdout). Batch: default "
+                       "<input>/text/; specify dir to mirror input hierarchy.")
     @click.option("-f", "--format", "fmt",
                   type=click.Choice(["txt", "srt", "vtt"]),
                   default=cfg.default_format, show_default=True)
@@ -82,11 +83,20 @@ def _build_cli():
             return
 
         if input_path.is_dir():
-            batch_transcribe(input_path, server=server, fmt=fmt,
-                             language=language, model=model, jobs=jobs,
-                             simplify=simplify, refine=refine,
-                             ollama_url=ollama_url, refine_model=refine_model,
-                             refine_mode=refine_mode, llm_timeout=cfg.llm_timeout)
+            if output == "-":
+                raise click.UsageError(
+                    "Batch mode does not support stdout output (--output -)."
+                )
+            output_path = Path(output) if output else None
+            batch_transcribe(
+                input_path,
+                output_dir=output_path,
+                server=server, fmt=fmt,
+                language=language, model=model, jobs=jobs,
+                simplify=simplify, refine=refine,
+                ollama_url=ollama_url, refine_model=refine_model,
+                refine_mode=refine_mode, llm_timeout=cfg.llm_timeout
+            )
             return
 
         _transcribe_file(input_path, server=server, output=output,
