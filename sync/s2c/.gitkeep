@@ -1,2 +1,0 @@
-# Keeps the s2c/ (server → client) directory in git.
-# Only the server writes message files here. See ../PROTOCOL.md §1.

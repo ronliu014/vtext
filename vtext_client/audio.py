@@ -8,7 +8,7 @@ import zstandard as zstd
 
 from .errors import VtextClientError
 
-COMPRESS_THRESHOLD = 100 * 1024 * 1024  # 100MB
+COMPRESS_THRESHOLD = 999999 * 1024 * 1024  # 100MB → 临时禁用压缩测试 zstd 问题
 
 
 def extract_wav(input_path: Path) -> Path:
