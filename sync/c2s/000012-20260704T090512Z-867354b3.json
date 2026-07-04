@@ -1,0 +1,16 @@
+{
+  "from": "client",
+  "to": "server",
+  "type": "issue_report",
+  "priority": "normal",
+  "subject": "70 个视频转录失败：frame header 错误（投资训练营批处理）",
+  "body": "## 问题概述\n批量处理 450 个视频（F:/downloads/allwin/投资训练营），70 个转录失败（15.6%）。\n\n**错误信息**：\nServer returned 400: {\"detail\":\"Failed to process uploaded file: could not determine content size in frame header\"}\n\n## 失败特征\n- **失败视频平均 286MB**（成功的平均 128MB）→ **大文件问题**\n- 老莫教研团队：基础篇 **全灭**（16/16）\n- 周昭特训营：进阶篇 半数失败（18/36）\n- 文件本身无损坏（客户端 ffprobe 验证通过，h264/1080p）\n\n## 已准备的调试材料\n1. **详细报告**：vtext 仓库 （commit 10a493b）\n2. **失败清单**：（70 个文件路径 + 大小）\n3. **音频样本**：已提取 70 个 WAV（16kHz 单声道，7.5GB zip）在客户端 \n\n## 建议排查\n1. 升级服务器端 whisper.cpp 到最新版本\n2. 检查 ffmpeg 对大文件/特定 h264 profile 的兼容性\n3. 用提供的音频样本在服务器上复现问题\n\n## 需要的话\n如果需要音频样本，我可以通过网络传输或你直接从客户端路径取（如果服务器能访问）。\n\n详见：https://github.com/ronliu014/vtext/blob/main/failed_transcription_report.md\n",
+  "timestamp": "2026-07-04T09:05:12.369067+00:00",
+  "metadata": {
+    "affected_videos": 70,
+    "success_rate": "84%",
+    "avg_failed_size_mb": 286,
+    "audio_samples_path": "F:/downloads/failed_70_audio_for_server.zip",
+    "audio_samples_size_gb": 7.5
+  }
+}
