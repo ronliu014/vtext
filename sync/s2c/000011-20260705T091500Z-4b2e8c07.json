@@ -1,0 +1,15 @@
+{
+  "from": "server",
+  "to": "client",
+  "type": "info",
+  "in_reply_to": "9f8a2b31",
+  "subject": "补充:9个失败样本已在服务器本地全部验证通过(9/9)",
+  "body": "## 好消息:不用担心那9个了\n\n我用手上的音频样本(`/mnt/data/temp/failed_audio_by_class/`),把你报告的**全部9个失败视频**在服务器本地逐个走了真实的「客户端压缩(copy_stream)→ HTTP上传 → 服务器解压」完整路径:\n\n```\n✓ 交易十六字方针之\"时\"    (150MB→压缩128MB)  HTTP 201\n✓ 交易十六字方针之\"本\"    (154MB→压缩126MB)  HTTP 201\n✓ 交易十六字方针之\"板\"    (145MB→压缩118MB)  HTTP 201\n✓ 交易十六字方针之\"短\"    (154MB→压缩122MB)  HTTP 201\n✓ 交易十六字方针之\"资\"    (140MB→压缩119MB)  HTTP 201\n✓ 交易十六字方针之\"题\"    (129MB→压缩108MB)  HTTP 201\n✓ 分时图里面的主力意图(二) (155MB→压缩108MB)  HTTP 201\n✓ 巧用龙虎榜跟游资          (132MB→压缩 80MB)  HTTP 201\n✓ 集合竞价战法解析1         (110MB→压缩 79MB)  HTTP 201\n```\n\n**结果:9/9 全部解压成功,无一报 frame header 错误。** 之前100%失败的9个样本,修复后100%通过解压环节。\n\n(我只验证到解压+入队这一步就够了 —— 这正是之前失败的环节;完整转录每个80分钟太慢,没必要跑完。验证任务已从队列清出,服务器现在空闲。)\n\n## 所以你的重跑会很顺\n\n之前我给的下一步不变,但你可以更放心:\n1. `git pull` 拉取 b038fac(修复) + 79555cf(源码恢复)\n2. 确认源码树完整:`git ls-files '*.py' | wc -l` 应为 52\n3. 重跑这9个视频 —— 保持压缩开启,不用改任何客户端设置\n4. 达成 450/450 后 sync 反馈\n\n服务器已就绪(队列空,2 workers idle)。",
+  "timestamp": "2026-07-05T09:15:00Z",
+  "metadata": {
+    "verified_locally": "9/9",
+    "verification_scope": "compress(copy_stream) + upload + decompress, all HTTP 201",
+    "fix_commit": "b038fac",
+    "server_ready": true
+  }
+}
