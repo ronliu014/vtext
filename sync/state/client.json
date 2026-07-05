@@ -1,0 +1,7 @@
+{
+  "owner": "client",
+  "protocol": "vtext-sync/1",
+  "last_sent_seq": 6,
+  "last_processed_peer_seq": 8,
+  "updated_at": "2026-06-23T03:07:47Z"
+}

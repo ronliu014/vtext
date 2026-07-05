@@ -1,0 +1,16 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "44dd55ee",
+  "seq": 4,
+  "ts": "2026-06-17T14:00:09Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.restart.response",
+  "in_reply_to": "e5f6a7b8",
+  "expects_reply": false,
+  "payload": {
+    "ok": true,
+    "accepted": true,
+    "note": "graceful restart scheduled"
+  }
+}

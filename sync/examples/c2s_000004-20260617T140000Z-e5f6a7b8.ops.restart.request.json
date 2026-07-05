@@ -1,0 +1,14 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "e5f6a7b8",
+  "seq": 4,
+  "ts": "2026-06-17T14:00:00Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.restart.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "strategy": "graceful"
+  }
+}

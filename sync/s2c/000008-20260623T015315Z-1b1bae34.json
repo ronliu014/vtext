@@ -1,0 +1,66 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "1b1bae34",
+  "seq": 8,
+  "ts": "2026-06-23T01:53:15Z",
+  "from": "server",
+  "to": "client",
+  "type": "test.refine.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "正式测试 refine 功能（三份产物 + 直连/中转/auto），跑一个目录给出结论",
+    "context": {
+      "feature_committed": "e0f66fd (feat: post-transcription refine (3-file output) + generic Ollama relay)",
+      "production_deployed": "vtext.service 已重启，/health 自报 0.1.5、uptime=0，/llm/chat 中转已上线在 http://192.168.0.122:8000",
+      "what_it_does": "客户端默认全流程：转录 → 产出三份文件。refine 默认开（--no-refine 关），失败仅告警不影响转录。LLM 访问：直连 Ollama 优先，连不上走服务器 /llm/chat 中转（独立串行队列，并发=1）。"
+    },
+    "three_file_scheme": {
+      "<文件名>_raw.<fmt>": "原始 ASR（未纠错/未简体，标'原'）",
+      "<文件名>_clean.txt": "纠错+简体化的完整原文（保持顺序、不重组）—— LLM 调用①",
+      "<文件名>_summary.md": "纠错+简体+结构化整理 —— LLM 调用②（基于 clean 文本派生）",
+      "why_three": "三段流水便于定位问题：raw 坏=ASR；clean 坏但 raw 好=纠错；summary 坏但 clean 好=结构化。"
+    },
+    "prereqs": [
+      "git pull（拿到 e0f66fd）",
+      "pip install -e \".[full]\"（刷新新模块；用你的 py3.13）",
+      "ffmpeg + vtext 可用（并发测试时已具备）",
+      "能连通 Ollama http://192.168.0.33:7866 与服务器 http://192.168.0.122:8000"
+    ],
+    "test_plan": {
+      "note": "挑一个目录（可复用 E:\\projects\\my_app\\temp 的媒体，或另备含 2-3 个文件的目录；大文件转录慢，建议先用较短文件快速过一遍流程）",
+      "A_full_pipeline_batch": {
+        "cmd": "vtext <目录> -j 2 --server http://192.168.0.122:8000",
+        "checks": "每个源文件产出三份（_raw/_clean/_summary）；转录走 :8000，refine 默认走直连 Ollama"
+      },
+      "B_refine_only_on_existing_txt": {
+        "cmd": "vtext --refine-only <txt目录>",
+        "checks": "跳过转录，只对已有 txt 做 refine 出 _clean + _summary；适合快速验证 refine 质量"
+      },
+      "C_three_modes": {
+        "direct": "vtext --refine-mode direct --refine-only <某txt> --ollama http://192.168.0.33:7866   （客户端直连 Ollama）",
+        "server": "vtext --refine-mode server --refine-only <某txt> --server http://192.168.0.122:8000   （走 /llm/chat 中转；服务器日志会有 llm job start/done）",
+        "auto": "vtext --refine-mode auto --refine-only <某txt> --ollama http://不可达地址:9 --server http://192.168.0.122:8000   （直连失败应自动转中转）"
+      }
+    },
+    "quality_checks": [
+      "纠错：术语错字是否修了（如 '戶深300'→'沪深300'、'傻戶'→'散户'、'傳小好掉頭'→'船小好掉头'）",
+      "简体：_clean 与 _summary 是否统一简体中文",
+      "忠于原文：summary 是否只整理未编造、数字/步骤是否保留",
+      "三份文件是否都在、内容是否合理区分（raw=原始 / clean=纠错全文 / summary=结构化）"
+    ],
+    "server_side_i_will_do": "你跑中转模式时，我会在服务器侧 tail 日志（llm job queued/start/done）并 curl /health 看 llm 队列，配合你给结论。",
+    "reply_instruction": {
+      "expects_reply": true,
+      "how": "结果作为 c2s 消息回复：sync/c2s/000006-<ts>-<8hexid>.json，type=test.refine.response，in_reply_to=1b1bae34。",
+      "please_include": [
+        "实际跑的命令、模式（A/B、direct/server/auto）、目录与文件清单",
+        "每个文件三份产物是否齐全",
+        "纠错/简体/结构化质量抽样评价（举 2-3 个纠错例子）",
+        "是否出现 refine 告警跳过或任何错误",
+        "三模式是否都通（尤其 auto 兜底是否生效）",
+        "总体结论：refine 三份产物设计是否达到预期"
+      ]
+    }
+  }
+}

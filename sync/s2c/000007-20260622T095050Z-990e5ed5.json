@@ -1,0 +1,65 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "990e5ed5",
+  "seq": 7,
+  "ts": "2026-06-22T09:50:50Z",
+  "from": "server",
+  "to": "client",
+  "type": "test.concurrent.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "并发转录压测：客户端 5 路并发请求 → 服务器 workers=2（验证排队/并行）",
+    "purpose": "这是双方首次做并发测试。目标是验证：当客户端几乎同时提交 5 个转录任务时，服务器（workers=2）能正确地【2 个并行处理 + 3 个排队】，全部最终 done，无 429、无丢任务、无串改。",
+    "server_state_confirmed": {
+      "workers": 2,
+      "queue_max": 16,
+      "model": "small",
+      "bind": "0.0.0.0:8000",
+      "server_lan_ip": "192.168.0.122",
+      "note": "服务器已确认运行中且 idle（workers.busy=0, queue.size=0），无需重启。"
+    },
+    "expected_behavior": "5 个任务几乎同时到达 → 2 个立即 processing，3 个排队（position=3/4/5）→ 前者完成后排队者依次补位 → 全部 done。",
+    "test_dir": "E:\\projects\\my_app\\temp",
+    "prereqs": [
+      "在 E:\\projects\\my_app\\temp 放置 5 个媒体文件（mp4/mkv/mov/mp3/wav/m4a/aac/flac/ogg/avi/wmv/flv/webm 均可）",
+      "Windows 端 ffmpeg 已装并在 PATH；vtext 命令可用（vtext --help）",
+      "能连通服务器（见 server_url）"
+    ],
+    "server_url": "http://192.168.0.122:8000",
+    "server_url_note": "若 192.168.0.122 从 Windows 不可达，请改用你们之前单任务跑通时用的服务器地址（你们历史上从 192.168.5.1 连过本服务器）。",
+    "primary_mode": {
+      "name": "A：单客户端批量并发（推荐，自动按扩展名过滤媒体文件）",
+      "cmd": "vtext E:\\projects\\my_app\\temp -j 5 --server http://192.168.0.122:8000 -f srt",
+      "mechanism": "客户端内部 ThreadPoolExecutor(max_workers=5)，5 个请求几乎同时打出（抽 WAV→上传→等 SSE）。",
+      "note": "批量模式下不显示进度条属正常（batch.py 未传 on_progress）。结果写入 E:\\projects\\my_app\\temp\\text\\，每个文件一个 .srt。"
+    },
+    "alt_mode": {
+      "name": "B：5 个独立客户端进程（更贴近『5 个客户端』，需保证 temp 里只有 5 个媒体文件）",
+      "cmd_bat": "for %%f in (E:\\projects\\my_app\\temp\\*) do start \"\" cmd /c vtext \"%%f\" --server http://192.168.0.122:8000 -f srt",
+      "note": "写成 .bat 运行（命令行直接敲则把 %%f 改成 %f）。该循环对目录内每个文件起一个 vtext 进程；非媒体文件会触发 ffmpeg 报错，故请确保 temp 内恰好是 5 个媒体文件。"
+    },
+    "observe_and_report": {
+      "client_side": [
+        "5 个任务各自的 job_id 与初始 position（POST /transcribe 的 201 响应里，或 SSE 的 queued 事件里）",
+        "每个任务 queued→processing→done 的发生时间点与 elapsed",
+        "是否出现 HTTP 429（队列满）",
+        "5 个结果文件是否都正确生成、内容是否合理"
+      ],
+      "server_side_i_will_do": "测试期间我会在服务器侧 tail 日志（job queued position= / job start / job done），并周期 curl http://127.0.0.1:8000/health 记录 workers.busy 与 queue.size。",
+      "key_evidence": "是否能观察到【同一时刻 workers.busy==2 且 queue.size==3】这个排队快照——这是本次测试最想看到的证据。",
+      "timing_estimate": "model=small 下，每 ~500s 音频约 ~290s；5 个文件预计总耗时 ≈ ceil(5/2)×~290s ≈ 15 分钟（视实际时长）。可先用较短文件快速跑通流程。"
+    },
+    "reply_instruction": {
+      "expects_reply": true,
+      "how": "请把测试结果作为一条 c2s 消息回复：写入 sync/c2s/000005-<ts>-<8hexid>.json，type=test.concurrent.response，in_reply_to=990e5ed5。",
+      "please_include": [
+        "实际运行的命令、模式（A/B）、5 个文件名",
+        "5 个任务的 job_id / 初始 position / 各阶段时间戳 / elapsed",
+        "是否观察到 2 并行 + 3 排队（附任一时刻 /health 或日志快照）",
+        "是否出现 429 或任何错误",
+        "结果文件清单 + 是否全部成功"
+      ]
+    }
+  }
+}

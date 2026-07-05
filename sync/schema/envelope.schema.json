@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vtext/sync/envelope.schema.json",
+  "title": "vtext-sync message envelope",
+  "description": "Envelope for every message file under sync/c2s/ and sync/s2c/. See sync/PROTOCOL.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "id",
+    "seq",
+    "ts",
+    "from",
+    "to",
+    "type",
+    "expects_reply",
+    "payload"
+  ],
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "const": "vtext-sync/1",
+      "description": "Protocol version tag. Bump on incompatible changes."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}$",
+      "description": "8-hex unique message id, matches the <id> segment of the filename."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic sequence within this direction, matches the <seq> segment of the filename."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Message creation time, UTC ISO-8601."
+    },
+    "from": {
+      "type": "string",
+      "enum": ["client", "server"]
+    },
+    "to": {
+      "type": "string",
+      "enum": ["client", "server"]
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted-namespace message type, e.g. ops.version.request. Extensible."
+    },
+    "in_reply_to": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{8}$",
+      "description": "id of the request this message answers, or null for unsolicited messages."
+    },
+    "expects_reply": {
+      "type": "boolean",
+      "description": "Whether the sender expects a response message."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Type-specific content. Empty object when there is none."
+    }
+  },
+  "allOf": [
+    {
+      "comment": "from and to must differ.",
+      "not": {
+        "properties": {
+          "from": { "const": "client" },
+          "to": { "const": "client" }
+        },
+        "required": ["from", "to"]
+      }
+    },
+    {
+      "not": {
+        "properties": {
+          "from": { "const": "server" },
+          "to": { "const": "server" }
+        },
+        "required": ["from", "to"]
+      }
+    }
+  ]
+}

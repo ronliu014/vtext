@@ -1,0 +1,27 @@
+{
+  "id": "d4e5f6a7",
+  "seq": 3,
+  "ts": "2260618T080000Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.notice",
+  "ref": null,
+  "body": {
+    "subject": "繁体转简体 --simplify 已上线",
+    "items": [
+      {
+        "feature": "--simplify flag",
+        "status": "done",
+        "detail": "vtext_client/cli.py 和 vtext_client/batch.py 均已添加 --simplify 参数。转换使用 opencc-python-reimplemented (OpenCC t2s)，已加入 pyproject.toml 依赖。单文件和批量模式均支持。"
+      },
+      {
+        "note": "opencc 已列为核心依赖，无需单独安装。如环境中尚未安装请执行：pip install -e '.[full,dev]'"
+      },
+      {
+        "tests": "189 passed",
+        "commit": "a4258dc",
+        "pushed": true
+      }
+    ]
+  }
+}
