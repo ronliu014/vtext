@@ -1,6 +1,8 @@
 """FastAPI application."""
+import io
 import logging
 import queue
+import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -80,8 +82,14 @@ def _router():
         tmp_path = Path(tmp.name)
         try:
             if encoding == "zstd":
+                # Stream-decompress: the client compresses with copy_stream(), which
+                # omits the decompressed size from the zstd frame header. The one-shot
+                # decompress() API requires that size and fails with "could not
+                # determine content size in frame header" — stream_reader() does not,
+                # and chunked copy avoids buffering the whole file in memory.
                 dctx = zstd.ZstdDecompressor()
-                tmp.write(dctx.decompress(content))
+                with dctx.stream_reader(io.BytesIO(content)) as reader:
+                    shutil.copyfileobj(reader, tmp, length=1024 * 1024)
             else:
                 tmp.write(content)
             tmp.close()

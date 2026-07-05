@@ -106,6 +106,24 @@ class TestTranscribe:
         )
         assert resp.status_code == 201
 
+    def test_zstd_stream_compressed_file(self, client):
+        # The client compresses with copy_stream(), which omits the decompressed
+        # size from the frame header. This is the exact path that failed in
+        # production ("could not determine content size in frame header") because
+        # the server used the one-shot decompress() API. Guard against regression.
+        import io
+        import zstandard as zstd
+        raw = b"RIFF" + b"\x00" * 4096
+        buf = io.BytesIO()
+        cctx = zstd.ZstdCompressor(level=3)
+        cctx.copy_stream(io.BytesIO(raw), buf)
+        resp = client.post(
+            "/transcribe",
+            data={"format": "txt", "encoding": "zstd"},
+            files={"file": ("audio.wav.zst", buf.getvalue(), "application/octet-stream")},
+        )
+        assert resp.status_code == 201
+
     def test_bad_zstd_data_returns_400(self, client):
         resp = client.post(
             "/transcribe",
