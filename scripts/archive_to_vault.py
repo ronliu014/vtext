@@ -51,16 +51,15 @@ created: 2026-06-27
 
 """
 
-    # Build body: summary + embedded clean
+    # Build body: summary + embedded clean (Obsidian collapsible callout)
+    clean_lines = []
+    for line in clean_text.split("\n"):
+        clean_lines.append(">" if line.strip() == "" else "> " + line)
+
     body = f"""{summary_text}
 
----
-
-## 原文（ASR 纠错全文）
-
-{{% fold "展开查看完整原文" %}}
-{clean_text}
-{{% /fold %}}
+> [!quote]- 原文（纠错全文）
+{chr(10).join(clean_lines)}
 """
 
     # Write to vault
