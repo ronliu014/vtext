@@ -1,11 +1,48 @@
-# vtext 文档索引
+# vtext Documentation
 
-本目录包含 vtext 项目的所有设计与技术文档。
+This directory uses lightweight numbered documentation layers inspired by
+vBook. Start here before reading implementation code or dated progress logs.
 
-| 文档 | 内容 |
-|------|------|
-| [design.md](./design.md) | 总体架构、模块划分、设计决策 |
-| [api.md](./api.md) | REST API 端点、请求/响应格式、SSE 协议 |
-| [architecture.md](./architecture.md) | 关键架构决策记录（ADR）及权衡分析 |
-| [deployment.md](./deployment.md) | Docker、systemd 部署指南及配置文件参考 |
-| [models.md](./models.md) | 模型选择指南、实测对比、中文识别建议 |
+## Fast Reading Path
+
+For project orientation:
+
+1. [00_project/overview.md](./00_project/overview.md)
+2. [00_project/status.md](./00_project/status.md)
+3. [00_project/task-board.md](./00_project/task-board.md)
+
+For development and maintenance:
+
+1. [40_development/environment.md](./40_development/environment.md)
+2. [20_architecture/design.md](./20_architecture/design.md)
+3. [20_architecture/api.md](./20_architecture/api.md)
+4. [60_operations/deployment.md](./60_operations/deployment.md)
+5. [60_operations/models.md](./60_operations/models.md)
+
+For vBook integration:
+
+1. [90_reference/vbook-text-integration-response.md](./90_reference/vbook-text-integration-response.md)
+2. [60_operations/vbook-text-integration.md](./60_operations/vbook-text-integration.md)
+3. [20_architecture/output-contracts.md](./20_architecture/output-contracts.md)
+
+## Documentation Layers
+
+| Layer | Purpose |
+| --- | --- |
+| [00_project/](./00_project/) | Project overview, current status, and task board |
+| [20_architecture/](./20_architecture/) | Architecture, API, output contracts, and design decisions |
+| [40_development/](./40_development/) | Local environment, test commands, and development setup |
+| [60_operations/](./60_operations/) | Deployment, models, runbooks, and troubleshooting |
+| [70_progress/](./70_progress/) | Dated progress notes and milestone snapshots |
+| [90_reference/](./90_reference/) | Cross-project requests, responses, and reference material |
+
+## Migrated Source Documents
+
+The original flat documents now live in numbered layers:
+
+- [20_architecture/design.md](./20_architecture/design.md)
+- [20_architecture/api.md](./20_architecture/api.md)
+- [20_architecture/architecture.md](./20_architecture/architecture.md)
+- [60_operations/deployment.md](./60_operations/deployment.md)
+- [60_operations/models.md](./60_operations/models.md)
+

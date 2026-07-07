@@ -102,7 +102,7 @@ default_language = "zh"                 # 留空则自动检测
 
 配置优先级：**CLI 参数 > 环境变量 > TOML 配置 > 内置默认值**
 
-详细部署选项（Docker、环境变量、安全配置）见 [docs/deployment.md](./docs/deployment.md)。
+详细部署选项（Docker、环境变量、安全配置）见 [docs/60_operations/deployment.md](./docs/60_operations/deployment.md)。
 
 ---
 
@@ -179,7 +179,7 @@ log_level = "INFO"
 
 **中文必须用 `small` 及以上**；`medium` 不指定语言会输出英文翻译，需加 `-l zh`；`large-v3` 修正了这一问题，自动检测恢复正常。
 
-详细对比见 [docs/models.md](./docs/models.md)。
+详细对比见 [docs/60_operations/models.md](./docs/60_operations/models.md)。
 
 ---
 
@@ -197,8 +197,38 @@ log_level = "INFO"
 
 详细设计文档见 [docs/](./docs/README.md)：
 
-- [docs/design.md](./docs/design.md) — 总体架构与模块设计
-- [docs/api.md](./docs/api.md) — API 端点与 SSE 协议
-- [docs/architecture.md](./docs/architecture.md) — 架构决策记录
-- [docs/deployment.md](./docs/deployment.md) — Docker / systemd 部署指南
-- [docs/models.md](./docs/models.md) — 模型选择指南与实测对比
+- [docs/00_project/overview.md](./docs/00_project/overview.md) — 项目定位与边界
+- [docs/20_architecture/design.md](./docs/20_architecture/design.md) — 总体架构与模块设计
+- [docs/20_architecture/api.md](./docs/20_architecture/api.md) — API 端点与 SSE 协议
+- [docs/20_architecture/architecture.md](./docs/20_architecture/architecture.md) — 架构决策记录
+- [docs/20_architecture/output-contracts.md](./docs/20_architecture/output-contracts.md) — 输出文件与 manifest 合同
+- [docs/60_operations/deployment.md](./docs/60_operations/deployment.md) — Docker / systemd 部署指南
+- [docs/60_operations/models.md](./docs/60_operations/models.md) — 模型选择指南与实测对比
+- [docs/60_operations/vbook-text-integration.md](./docs/60_operations/vbook-text-integration.md) — vBook 文本集成运行手册
+
+### 文档分层规范
+
+`docs/` 采用轻量编号分层，和兄弟项目 vBook 的文档组织方式保持兼容：
+
+| 层级 | 用途 |
+|------|------|
+| `00_project/` | 项目概览、状态、任务板 |
+| `20_architecture/` | 架构、API、输出合同、长期技术决策 |
+| `40_development/` | 本地开发环境、测试命令、协作规则 |
+| `60_operations/` | 部署、模型、运行手册、故障排查 |
+| `70_progress/` | 日期化进展记录、阶段总结 |
+| `90_reference/` | 跨项目请求/响应、外部约束、参考资料 |
+
+新增文档时优先放入对应层级，不再把设计、部署、合同和进展记录混放在 `docs/` 根目录。
+
+### 跨项目协同规范
+
+vtext、vBook、vision 是兄弟项目，分工不同，通过稳定边界协作：
+
+- **vtext** 负责音视频转写、文本纠错、文本摘要和可机器读取的文本产物。
+- **vision** 负责图像/帧理解、OCR、视觉描述和视觉证据产物。
+- **vBook** 负责编排课程知识生产流程，融合 vtext 文本证据和 vision 视觉证据，生成预览输出和未来的 vault 写回。
+
+长期集成边界只能是 CLI、HTTP API、JSON/Markdown artifact contract 和文档化 runbook。vBook 不应 import 或 vendor vtext 内部 Python 模块；vtext 也不应依赖 vBook 或 vision 的内部实现。
+
+vBook 调用 vtext 的当前稳定入口见 [docs/60_operations/vbook-text-integration.md](./docs/60_operations/vbook-text-integration.md)。输出文件和 `manifest.json` 合同见 [docs/20_architecture/output-contracts.md](./docs/20_architecture/output-contracts.md)。跨项目请求/响应记录保存在 [docs/90_reference/](./docs/90_reference/)。

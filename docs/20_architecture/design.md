@@ -28,7 +28,13 @@
 
 ```
 vtext/
-├── docs/                           # 文档目录（见 docs/README.md）
+├── docs/                           # 编号分层文档（见 docs/README.md）
+│   ├── 00_project/                 # 项目概览、状态、任务板
+│   ├── 20_architecture/            # 架构、API、输出合同
+│   ├── 40_development/             # 开发环境与测试命令
+│   ├── 60_operations/              # 部署、模型、运行手册
+│   ├── 70_progress/                # 日期化进展记录
+│   └── 90_reference/               # 跨项目请求/响应与参考资料
 ├── pyproject.toml
 │
 ├── vtext_server/                   # server 包

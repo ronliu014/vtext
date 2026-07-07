@@ -1,7 +1,6 @@
 """Tests for vtext_client.cli."""
-import sys
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+import json
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -194,6 +193,75 @@ class TestTranscribeFile:
             runner.invoke(cli, [str(input_file), "-f", "srt"])
 
         assert submitted_fmt[0] == "srt"
+
+    def test_vbook_bundle_writes_stable_outputs_and_manifest(self, runner, tmp_path):
+        course_dir = tmp_path / "course"
+        series_dir = course_dir / "series"
+        series_dir.mkdir(parents=True)
+        input_file = series_dir / "lesson.mp4"
+        input_file.touch()
+        out_dir = tmp_path / "out"
+        wav = tmp_path / "lesson.wav"
+        wav.touch()
+        result = make_result("Hello world")
+
+        with patch("vtext_client.cli.extract_wav", return_value=wav), \
+             patch("vtext_client.cli.maybe_compress", return_value=(wav, None)), \
+             patch("vtext_client.cli.submit_job", return_value="abc12345"), \
+             patch("vtext_client.cli.stream_progress", return_value=result), \
+             patch("vtext_client.cli.refine_text", return_value=("Clean text", "# Summary")):
+            r = runner.invoke(
+                cli,
+                [
+                    str(input_file),
+                    "--bundle",
+                    "vbook",
+                    "-o",
+                    str(out_dir),
+                    "-f",
+                    "srt",
+                    "-l",
+                    "zh",
+                ],
+            )
+
+        assert r.exit_code == 0
+        assert (out_dir / "transcript.raw.txt").read_text(encoding="utf-8") == "Hello world"
+        assert "00:00:00,000" in (out_dir / "transcript.raw.srt").read_text(encoding="utf-8")
+        assert (out_dir / "transcript.clean.txt").read_text(encoding="utf-8") == "Clean text"
+        assert (out_dir / "summary.md").read_text(encoding="utf-8") == "# Summary"
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["status"] == "done"
+        assert manifest["course"] == "course"
+        assert manifest["series"] == "series"
+        assert manifest["lesson_title"] == "lesson"
+        assert manifest["language"] == "zh"
+        assert manifest["outputs"] == {
+            "raw_txt": "transcript.raw.txt",
+            "raw_srt": "transcript.raw.srt",
+            "clean_txt": "transcript.clean.txt",
+            "summary_md": "summary.md",
+        }
+        assert manifest["errors"] == []
+
+    def test_vbook_bundle_writes_failed_manifest_on_transcription_error(self, runner, tmp_path):
+        input_file = tmp_path / "course" / "series" / "lesson.mp4"
+        input_file.parent.mkdir(parents=True)
+        input_file.touch()
+        out_dir = tmp_path / "out"
+
+        with patch("vtext_client.cli.extract_wav", side_effect=VtextClientError("boom")):
+            r = runner.invoke(
+                cli,
+                [str(input_file), "--bundle", "vbook", "-o", str(out_dir), "-l", "zh"],
+            )
+
+        assert r.exit_code == 1
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["status"] == "failed"
+        assert manifest["outputs"] == {}
+        assert manifest["errors"][0]["stage"] == "transcription"
+        assert manifest["errors"][0]["code"] == "client_error"
 
 
 class TestBatchMode:
