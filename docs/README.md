@@ -23,7 +23,8 @@ For vBook integration:
 
 1. [90_reference/vbook-text-integration-response.md](./90_reference/vbook-text-integration-response.md)
 2. [60_operations/vbook-text-integration.md](./60_operations/vbook-text-integration.md)
-3. [20_architecture/output-contracts.md](./20_architecture/output-contracts.md)
+3. [60_operations/windows-linux-agent-coordination.md](./60_operations/windows-linux-agent-coordination.md)
+4. [20_architecture/output-contracts.md](./20_architecture/output-contracts.md)
 
 ## Documentation Layers
 
@@ -45,4 +46,3 @@ The original flat documents now live in numbered layers:
 - [20_architecture/architecture.md](./20_architecture/architecture.md)
 - [60_operations/deployment.md](./60_operations/deployment.md)
 - [60_operations/models.md](./60_operations/models.md)
-
