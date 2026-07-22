@@ -1,0 +1,60 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "d043efbf",
+  "seq": 16,
+  "ts": "2026-07-22T02:44:57Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.investigate.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "Investigate vBook Allwin wave 009 server-to-GPU refine timeout",
+    "priority": "production-blocking",
+    "topology": {
+      "client": "Windows 192.168.5.1 vtext CLI",
+      "server": "http://192.168.0.122:8000",
+      "gpu_ollama": "http://192.168.0.33:7866",
+      "required_path": "vBook -> Windows vtext CLI -> Linux vtext server/LLM relay -> GPU Ollama"
+    },
+    "incident": {
+      "run_id": "R20260720-vtext-wave-009",
+      "task_id": "001-ec54d159110f",
+      "lesson": "量化模式/主升浪战法/前途无量模式—跟踪高控盘主力的利器",
+      "attempt_windows_utc": [
+        "2026-07-21T11:39:45Z/2026-07-21T12:23:29Z",
+        "2026-07-21T12:23:29Z/2026-07-21T13:08:25Z"
+      ],
+      "observed_error": "Server relay reported upstream 192.168.0.33:7866 read timeout after 900 seconds on both attempts",
+      "windows_artifact": "E:/projects/my_app/vbook/outputs/production-artifacts/vtext-wave-009/001-ec54d159110f/manifest.json",
+      "available_outputs": [
+        "transcript.raw.txt",
+        "transcript.raw.srt"
+      ]
+    },
+    "windows_fix": {
+      "commit": "e4b5df5",
+      "summary": "vBook bundle now forces server relay, rejects direct/disabled refine, and writes contract-complete fallback artifacts on runtime refine failure",
+      "tests": "tests/test_client/test_cli.py: 20 passed"
+    },
+    "checks": [
+      "Inspect vtext-server.service and vtext.llm_worker logs for both UTC attempt windows",
+      "Verify active ollama_url is http://192.168.0.33:7866 and llm_timeout is 900",
+      "Confirm the LLM worker remained healthy after each timeout",
+      "Test short connectivity from 192.168.0.122 to 192.168.0.33:7866",
+      "Reproduce through the vtext server /llm/chat path with the existing raw transcript or an equivalent long payload",
+      "Determine whether the limit is relay behavior, Ollama/model execution, context size, resource pressure, or lesson content"
+    ],
+    "response_required": [
+      "Root cause and supporting log timestamps/job ids",
+      "Exact service-side change if one is required",
+      "Restart and health evidence if the service is changed",
+      "Explicit recovery guidance: refine-only retry, same-run resume, or keep paused"
+    ],
+    "constraints": [
+      "Do not move production GPU ownership to the Windows client",
+      "Do not include large logs in sync; provide concise evidence and server-side paths",
+      "Do not restart the service until logs needed for diagnosis are preserved"
+    ]
+  }
+}
