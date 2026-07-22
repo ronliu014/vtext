@@ -6,6 +6,34 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 `vtext` is a client-server audio/video transcription tool built on whisper.cpp and ffmpeg. The server handles heavy transcription work; the client is a lightweight CLI that communicates with the server over HTTP.
 
+## Deployment Topology and Communication Boundaries
+
+Treat these locations, owners, and communication channels as durable project boundaries:
+
+| Scope | Production location | Agent owner | Responsibility |
+|-------|---------------------|-------------|----------------|
+| vtext client / CLI | Windows `192.168.5.1` | `wcodex` | CLI execution, client-side ffmpeg/audio extraction, server invocation, and local artifacts |
+| vtext server | Linux `192.168.0.122` | `lcodex` | Deployed transcription service, queues, runtime config, logs, restarts, and upstream model calls |
+| Internal vtext coordination | This repository's `sync/` directory | `wcodex` ↔ `lcodex` | Git-transported `vtext-sync/1` operations and control messages between the Windows client side and Linux server side |
+
+The production call path is:
+
+```text
+vBook (external project)
+  -> vtext CLI on Windows 192.168.5.1 (wcodex)
+  -> vtext server on Linux 192.168.0.122 (lcodex)
+  -> server-managed upstream services, including GPU Ollama at 192.168.0.33:7866
+```
+
+Mandatory boundaries:
+
+- `vBook` is an external consumer. It may use only the stable vtext CLI, HTTP API, and artifact contracts; it must never import or vendor vtext internals.
+- `sync/` is the **intra-project** Git mailbox for `wcodex` and `lcodex`. Follow `sync/PROTOCOL.md`; do not use it as the cross-project mailbox or as a replacement for the HTTP/SSE transcription data plane.
+- `vsync` is the **cross-project** Git mailbox for communication among vtext, vBook, vision, and other registered projects.
+- Never conflate `sync` and `vsync`: use `sync/` for Windows ↔ Linux coordination inside vtext, and use `vsync` for project ↔ project coordination.
+- Production GPU/Ollama connectivity is owned by the vtext server. Do not diagnose a Windows `localhost:11434` refusal as evidence that Windows should host Ollama, and do not reconfigure vBook or the Windows CLI to bypass `192.168.0.122` for production model calls.
+- Local Windows code changes are not deployed until `lcodex` applies or pulls them on the Linux server and reports deployment evidence.
+
 ## Environment
 
 - Local Windows development environment: use the Anaconda `App` environment.
@@ -87,3 +115,31 @@ Three Python packages in one repo:
 3. `GET /jobs/{job_id}` → polling alternative.
 
 Server uses `multiprocessing` workers (not threads).
+
+## vsync Cross-Project Coordination
+
+vText participates in `vsync/v1` as the text, manifest, and LLM-fusion support service for the v-series video-note processing cluster. Use vsync as the central mailbox for durable communication with `vbook` and `vision`; do not rely on chat history as the cross-project record.
+
+Canonical protocol:
+
+- `E:/projects/my_app/vsync/PROTOCOL.md`
+
+Mailbox:
+
+- inbox: `E:/projects/my_app/vsync/mailbox/inbox/vtext/README.md`
+- outbox: `E:/projects/my_app/vsync/mailbox/outbox/vtext/README.md`
+- messages: `E:/projects/my_app/vsync/mailbox/messages/`
+
+When creating, replying to, querying, indexing, or auditing cross-project messages, use:
+
+- `E:/projects/my_app/vsync/skills/cross-project-communication/SKILL.md`
+
+Rules:
+
+- Store canonical cross-project messages in `vsync/mailbox/messages/`.
+- Index sent messages in `vsync/mailbox/outbox/vtext/README.md`.
+- Check received messages in `vsync/mailbox/inbox/vtext/README.md`.
+- Use `Protocol: vsync/v1` and `Mailbox-Path:` in new message envelopes.
+- Do not write mailbox copies into `vbook` or `vision` repositories.
+- Update vText docs only when a mailbox message changes durable vText-owned facts such as contracts, runbooks, operations, compatibility, defaults, latency, risk, or backlog.
+- Keep videos, generated notes, extracted frames, large logs, and model artifacts out of vsync messages; link paths and summarize evidence instead.

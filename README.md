@@ -6,6 +6,35 @@
 
 ---
 
+## 生产部署与协同边界
+
+vtext 是一个同时包含 client 和 server 的独立项目。生产环境中的组件、部署位置与 agent 责任固定如下：
+
+| 范围 | 部署位置 | 责任 agent | 职责 |
+|------|----------|------------|------|
+| vtext client / CLI | Windows `192.168.5.1` | `wcodex` | 提供 CLI，提取音频、调用 vtext server，并生成本地 artifact |
+| vtext server | Linux `192.168.0.122` | `lcodex` | 运行转写服务，管理队列、运行配置、日志、服务部署和上游模型调用 |
+| vtext 内部通信 | 本仓库 [`sync/`](./sync/) | `wcodex` ↔ `lcodex` | 使用 Git 作为传输层，按 [`vtext-sync/1`](./sync/PROTOCOL.md) 在 Windows client 端与 Linux server 端之间传递运维和控制消息 |
+
+生产调用链路为：
+
+```text
+vBook（外部项目）
+  -> Windows 192.168.5.1 上的 vtext CLI（wcodex）
+  -> Linux 192.168.0.122 上的 vtext server（lcodex）
+  -> server 所管理的上游服务，例如 192.168.0.33:7866 上的 GPU Ollama
+```
+
+边界规则：
+
+- `vBook` 是外部项目，只能通过稳定的 vtext CLI、HTTP API 和 artifact contract 使用 vtext；不得 import 或 vendor vtext 内部代码。
+- `sync/` 是 **vtext 项目内部**的 Windows/Linux 双端通信协议，不是跨项目邮箱，也不替代转写所使用的 HTTP/SSE 数据通道。
+- [`vsync`](https://github.com/ronliu014/vsync) 是 **跨项目**通信协议，使用 Git 作为传输层，负责 vtext、vBook、vision 等项目之间的 durable mailbox 通信。
+- `sync` 与 `vsync` 名称相近但作用域不同，不得混用：内部双端协作用 `sync/`，跨项目协作用 `vsync`。
+- 生产环境的 GPU/Ollama 上游连接由 vtext server 管理；Windows client 和 vBook 不应绕过 `192.168.0.122` 直接承担该连接。
+
+---
+
 ## 架构
 
 ```
