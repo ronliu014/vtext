@@ -16,14 +16,26 @@ Treat these locations, owners, and communication channels as durable project bou
 | vtext server | Linux `192.168.0.122` | `lcodex` | Deployed transcription service, queues, runtime config, logs, restarts, and upstream model calls |
 | Internal vtext coordination | This repository's `sync/` directory | `wcodex` ↔ `lcodex` | Git-transported `vtext-sync/1` operations and control messages between the Windows client side and Linux server side |
 
-The production call path is:
+### Production Business Connectivity
+
+The following is the fixed production request path. Arrows show the direction of business requests:
 
 ```text
-vBook (external project)
-  -> vtext CLI on Windows 192.168.5.1 (wcodex)
-  -> vtext server on Linux 192.168.0.122 (lcodex)
-  -> server-managed upstream services, including GPU Ollama at 192.168.0.33:7866
+Windows 192.168.5.1 (wcodex)
+vBook -> vtext CLI
+          |
+          | HTTP / SSE
+          v
+192.168.0.122:8000 (lcodex)
+Linux vtext server / LLM relay
+          |
+          | Ollama HTTP API
+          v
+192.168.0.33:7866
+GPU Ollama
 ```
+
+vBook invokes only the local Windows vtext CLI, and the CLI submits production requests only to `192.168.0.122:8000`. Only the Linux vtext server / LLM relay connects to `192.168.0.33:7866`. There is no production edge from vBook or the Windows vtext CLI directly to GPU Ollama.
 
 Mandatory boundaries:
 
