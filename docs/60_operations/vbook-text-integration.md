@@ -102,6 +102,32 @@ If refine fails, vtext keeps the raw transcript artifacts, writes fallback
 and records a `refine` error in `errors[]`. vBook can still consume a complete
 bundle while seeing the degraded refine quality in the manifest.
 
+Fallback output is not publication-quality text. Keep the affected lesson
+paused until a successful refine-only recovery clears the active refine error.
+
+## Refine-Only Recovery
+
+For a lesson whose raw transcript is valid, recover the existing bundle without
+rerunning ASR:
+
+```powershell
+& 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
+  "<lesson-output-dir>/transcript.raw.txt" `
+  --server "http://192.168.0.122:8000" `
+  --refine-only `
+  --bundle vbook `
+  --output "<lesson-output-dir>"
+```
+
+Long transcripts are split into bounded 6,000-character chunks at sentence
+boundaries. Each chunk is corrected and structured through the Linux server
+relay, and outputs are assembled in source order. A successful recovery records
+the previous refine errors under `manifest.json recovery.previous_errors`.
+
+Revalidate all required outputs and the manifest before changing a terminal
+vBook run or removing an operator pause. Preserve the original task attempts as
+audit evidence.
+
 ## Common Issues
 
 - Server unavailable: run `--check-server`, start `vtext-server`, or change

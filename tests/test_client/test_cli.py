@@ -30,6 +30,16 @@ def runner():
     return CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def stub_default_refine():
+    """Keep CLI tests independent from local config and production LLM services."""
+    with patch(
+        "vtext_client.cli.refine_text",
+        return_value=("Clean text", "# Summary"),
+    ):
+        yield
+
+
 class TestCheckServer:
     def test_healthy_server(self, runner):
         health = {
@@ -334,6 +344,118 @@ class TestTranscribeFile:
         assert manifest["outputs"]["summary_md"] == "summary.md"
         assert manifest["errors"][0]["stage"] == "refine"
         assert manifest["errors"][0]["code"] == "refine_error"
+
+    def test_vbook_bundle_uses_chunked_refine_for_long_transcript(self, runner, tmp_path):
+        input_file = tmp_path / "lesson.mp4"
+        input_file.touch()
+        out_dir = tmp_path / "out"
+        wav = tmp_path / "lesson.wav"
+        wav.touch()
+        result = make_result("x" * 6001)
+
+        with patch("vtext_client.cli.extract_wav", return_value=wav), \
+             patch("vtext_client.cli.maybe_compress", return_value=(wav, None)), \
+             patch("vtext_client.cli.submit_job", return_value="abc12345"), \
+             patch("vtext_client.cli.stream_progress", return_value=result), \
+             patch("vtext_client.cli.refine_text") as regular_refine, \
+             patch(
+                 "vtext_client.cli.refine_text_chunked",
+                 return_value=("Chunked clean", "# Chunked summary"),
+             ) as chunked_refine:
+            r = runner.invoke(
+                cli,
+                [
+                    str(input_file),
+                    "--bundle",
+                    "vbook",
+                    "--output",
+                    str(out_dir),
+                ],
+            )
+
+        assert r.exit_code == 0
+        regular_refine.assert_not_called()
+        chunked_refine.assert_called_once()
+        assert chunked_refine.call_args.kwargs["mode"] == "server"
+
+    def test_vbook_refine_only_recovers_existing_bundle(self, runner, tmp_path):
+        out_dir = tmp_path / "artifact"
+        out_dir.mkdir()
+        raw_path = out_dir / "transcript.raw.txt"
+        raw_path.write_text("x" * 6001, encoding="utf-8")
+        manifest_path = out_dir / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "status": "done",
+                    "outputs": {"raw_txt": "transcript.raw.txt"},
+                    "models": {"asr": "small", "refine": "qwen3.5:9b"},
+                    "errors": [
+                        {
+                            "stage": "refine",
+                            "code": "refine_error",
+                            "message": "timeout",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with patch(
+            "vtext_client.cli._run_vbook_refine",
+            return_value=("Recovered clean", "# Recovered summary"),
+        ):
+            r = runner.invoke(
+                cli,
+                [
+                    str(raw_path),
+                    "--refine-only",
+                    "--bundle",
+                    "vbook",
+                    "--output",
+                    str(out_dir),
+                ],
+            )
+
+        assert r.exit_code == 0
+        assert (out_dir / "transcript.clean.txt").read_text(
+            encoding="utf-8"
+        ) == "Recovered clean"
+        recovered = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert recovered["errors"] == []
+        assert recovered["outputs"]["summary_md"] == "summary.md"
+        assert recovered["recovery"]["mode"] == "chunked_refine_only"
+        assert recovered["recovery"]["previous_errors"][0]["code"] == "refine_error"
+
+    def test_vbook_refine_only_rejects_invalid_manifest_before_refine(
+        self, runner, tmp_path
+    ):
+        out_dir = tmp_path / "artifact"
+        out_dir.mkdir()
+        raw_path = out_dir / "transcript.raw.txt"
+        raw_path.write_text("Raw transcript", encoding="utf-8")
+        (out_dir / "manifest.json").write_text(
+            json.dumps({"errors": "invalid", "outputs": {}, "models": {}}),
+            encoding="utf-8",
+        )
+
+        with patch("vtext_client.cli._run_vbook_refine") as run_refine:
+            r = runner.invoke(
+                cli,
+                [
+                    str(raw_path),
+                    "--refine-only",
+                    "--bundle",
+                    "vbook",
+                    "--output",
+                    str(out_dir),
+                ],
+            )
+
+        assert r.exit_code != 0
+        assert "errors must be an array of objects" in r.output
+        run_refine.assert_not_called()
 
     def test_vbook_bundle_writes_failed_manifest_on_transcription_error(self, runner, tmp_path):
         input_file = tmp_path / "course" / "series" / "lesson.mp4"

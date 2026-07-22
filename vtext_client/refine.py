@@ -15,6 +15,7 @@ vtext-server relay (``POST /llm/chat``). All failures raise :class:`RefineError`
 so callers can warn-and-skip without losing an already-produced transcript.
 """
 import re
+from collections.abc import Callable
 
 import requests
 
@@ -22,6 +23,7 @@ from .api import stream_llm_result, submit_llm_job
 from .errors import RefineError
 
 _DEFAULT_OPTIONS = {"temperature": 0.4}
+REFINE_CHUNK_CHARS = 6000
 
 CORRECT_SYSTEM_PROMPT = """你是一名专业的中文文字编辑。任务：对一段 ASR（语音自动转录）原文进行【纠错】，输出一份干净、完整、连贯的全文正文。
 
@@ -93,6 +95,104 @@ def refine_text(
         raise
     except Exception as e:  # noqa: BLE001 - non-fatal step: wrap anything
         raise RefineError(f"refine failed: {e}") from e
+
+
+def split_refine_chunks(
+    text: str,
+    *,
+    max_chars: int = REFINE_CHUNK_CHARS,
+) -> list[str]:
+    """Split text at sentence boundaries while preserving all source characters."""
+    if max_chars < 1:
+        raise ValueError("max_chars must be positive")
+    if not text:
+        return []
+
+    chunks: list[str] = []
+    current = ""
+    units = re.split(r"(?<=[。！？!?；;\n])", text)
+    for unit in units:
+        while unit:
+            remaining = max_chars - len(current)
+            if len(unit) <= remaining:
+                current += unit
+                break
+            if current:
+                chunks.append(current)
+                current = ""
+                continue
+            chunks.append(unit[:max_chars])
+            unit = unit[max_chars:]
+
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def refine_text_chunked(
+    plain: str,
+    *,
+    ollama_url: str,
+    model: str,
+    server_url: str,
+    mode: str = "server",
+    timeout: int = 300,
+    chunk_chars: int = REFINE_CHUNK_CHARS,
+    on_progress: Callable[[int, int, str], None] | None = None,
+) -> tuple[str, str]:
+    """Refine long text in bounded calls and assemble ordered clean/summary output."""
+    chunks = split_refine_chunks(plain, max_chars=chunk_chars)
+    if not chunks:
+        return "", "# 分段整理\n"
+
+    clean_parts: list[str] = []
+    summary_parts: list[str] = ["# 分段整理"]
+    total = len(chunks)
+
+    for index, chunk in enumerate(chunks, start=1):
+        try:
+            if on_progress:
+                on_progress(index, total, "correct")
+            clean = correct_text(
+                chunk,
+                ollama_url=ollama_url,
+                model=model,
+                server_url=server_url,
+                mode=mode,
+                timeout=timeout,
+            ).strip()
+
+            if on_progress:
+                on_progress(index, total, "structure")
+            summary = structure_text(
+                clean,
+                ollama_url=ollama_url,
+                model=model,
+                server_url=server_url,
+                mode=mode,
+                timeout=timeout,
+            ).strip()
+        except Exception as e:  # noqa: BLE001 - identify the failed bounded unit
+            raise RefineError(f"chunk {index}/{total} refine failed: {e}") from e
+
+        clean_parts.append(clean)
+        summary_parts.extend(
+            [
+                f"## 第 {index} 部分",
+                _nest_markdown_headings(summary),
+            ]
+        )
+
+    return "\n\n".join(clean_parts), "\n\n".join(summary_parts)
+
+
+def _nest_markdown_headings(markdown: str) -> str:
+    """Demote chunk-local headings so they remain below the chunk heading."""
+    def replace(match: re.Match[str]) -> str:
+        level = min(6, len(match.group(1)) + 2)
+        return f"{'#' * level}{match.group(2)}"
+
+    return re.sub(r"^(#{1,6})(\s)", replace, markdown, flags=re.M)
 
 
 def correct_text(

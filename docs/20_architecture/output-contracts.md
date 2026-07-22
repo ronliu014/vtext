@@ -71,6 +71,10 @@ Rules:
   rejected for this production contract.
 - `--no-refine` and a disabled client refine configuration are rejected for
   `--bundle vbook` because they cannot satisfy the required artifact layout.
+- Transcripts longer than 6,000 characters use bounded server-relay calls.
+  vtext splits at sentence boundaries, corrects and structures each chunk, then
+  assembles the chunks in source order. This avoids one full-output request
+  exceeding the server LLM timeout.
 - `transcript.raw.txt` is produced after successful transcription.
 - `transcript.raw.srt` is produced when `--format srt` is used.
 - `transcript.clean.txt` and `summary.md` are always produced after successful
@@ -81,6 +85,23 @@ Rules:
   invalidate the transcript artifacts or the bundle layout.
 - Transcription failure exits non-zero and writes a failed manifest when the
   output directory can be created.
+
+### Refine-Only Bundle Recovery
+
+Recover an existing bundle without rerunning ASR:
+
+```powershell
+& 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
+  "<lesson-output-dir>/transcript.raw.txt" `
+  --server "http://192.168.0.122:8000" `
+  --refine-only `
+  --bundle vbook `
+  --output "<lesson-output-dir>"
+```
+
+The command requires the existing `manifest.json`. On success it writes the
+canonical clean/summary files, removes active refine errors, and preserves those
+errors under `recovery.previous_errors`. It does not alter the raw transcript.
 
 ## Manifest Schema
 
@@ -121,6 +142,23 @@ Stable statuses for the first vBook integration pass:
 
 - `done`
 - `failed`
+
+Optional recovery audit object:
+
+```json
+{
+  "recovery": {
+    "mode": "chunked_refine_only",
+    "source": "transcript.raw.txt",
+    "chunk_chars": 6000,
+    "recovered_at": "2026-07-22T03:00:00Z",
+    "previous_errors": []
+  }
+}
+```
+
+`mode` is `refine_only` when the source fits one request and
+`chunked_refine_only` when bounded chunking is used.
 
 Stable error stages:
 

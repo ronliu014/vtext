@@ -1,4 +1,5 @@
 """CLI commands for vtext client."""
+import json
 import sys
 import time
 from datetime import datetime, timezone
@@ -12,7 +13,13 @@ from .batch import batch_transcribe
 from .config import load_client_config
 from .errors import QueueFullError, RefineError, ServerConnectionError, ServerError, VtextClientError
 from .manifest import error_entry, write_lesson_manifest
-from .refine import refine_text, to_simplified
+from .refine import (
+    REFINE_CHUNK_CHARS,
+    refine_text,
+    refine_text_chunked,
+    split_refine_chunks,
+    to_simplified,
+)
 from vtext_common.formats import format_output
 
 
@@ -83,7 +90,27 @@ def _build_cli():
 
         refine = cfg.refine_enabled and not no_refine
 
-        if refine_only:
+        if bundle == "vbook":
+            if not output or output == "-":
+                raise click.UsageError("--bundle vbook requires --output <lesson-output-dir>.")
+            if not refine:
+                raise click.UsageError("--bundle vbook requires refine to be enabled.")
+            if refine_mode == "direct":
+                raise click.UsageError(
+                    "--bundle vbook requires server-side refine; "
+                    "use --refine-mode server or auto."
+                )
+            if refine_only:
+                _refine_existing_vbook_bundle(
+                    input_path,
+                    output_dir=Path(output),
+                    server=server,
+                    ollama_url=ollama_url,
+                    model=refine_model,
+                    timeout=cfg.llm_timeout,
+                )
+                return
+        elif refine_only:
             _refine_only(input_path, server=server, ollama_url=ollama_url,
                          model=refine_model, mode=refine_mode,
                          timeout=cfg.llm_timeout)
@@ -109,15 +136,6 @@ def _build_cli():
             return
 
         if bundle == "vbook":
-            if not output or output == "-":
-                raise click.UsageError("--bundle vbook requires --output <lesson-output-dir>.")
-            if not refine:
-                raise click.UsageError("--bundle vbook requires refine to be enabled.")
-            if refine_mode == "direct":
-                raise click.UsageError(
-                    "--bundle vbook requires server-side refine; "
-                    "use --refine-mode server or auto."
-                )
             _transcribe_vbook_bundle(
                 input_path,
                 server=server,
@@ -129,7 +147,6 @@ def _build_cli():
                 refine=refine,
                 ollama_url=ollama_url,
                 refine_model=refine_model,
-                refine_mode="server",
                 llm_timeout=cfg.llm_timeout,
             )
             return
@@ -202,6 +219,128 @@ def _write_vbook_refine_fallback(
     return clean_path, summary_path
 
 
+def _run_vbook_refine(
+    raw_txt: str,
+    *,
+    server: str,
+    ollama_url: str,
+    model: str,
+    timeout: int,
+) -> tuple[str, str]:
+    if len(raw_txt) <= REFINE_CHUNK_CHARS:
+        return refine_text(
+            raw_txt,
+            ollama_url=ollama_url,
+            model=model,
+            server_url=server,
+            mode="server",
+            timeout=timeout,
+        )
+
+    chunk_count = len(split_refine_chunks(raw_txt))
+    click.echo(
+        f"Long transcript detected; refining in {chunk_count} chunks...",
+        err=True,
+    )
+
+    def on_progress(index: int, total: int, stage: str) -> None:
+        click.echo(f"Refining chunk {index}/{total}: {stage}", err=True)
+
+    return refine_text_chunked(
+        raw_txt,
+        ollama_url=ollama_url,
+        model=model,
+        server_url=server,
+        mode="server",
+        timeout=timeout,
+        on_progress=on_progress,
+    )
+
+
+def _refine_existing_vbook_bundle(
+    input_path: Path,
+    *,
+    output_dir: Path,
+    server: str,
+    ollama_url: str,
+    model: str,
+    timeout: int,
+) -> None:
+    """Recover clean/summary artifacts from an existing vBook raw transcript."""
+    if not input_path.is_file():
+        raise click.UsageError("vBook --refine-only requires one raw transcript file.")
+
+    manifest_path = output_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise click.UsageError(
+            "vBook --refine-only requires an existing <output>/manifest.json."
+        )
+
+    try:
+        raw_txt = input_path.read_text(encoding="utf-8")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            raise ValueError("manifest.json must contain a JSON object")
+        errors = manifest.get("errors", [])
+        outputs = manifest.get("outputs", {})
+        models = manifest.get("models", {})
+        if not isinstance(errors, list) or not all(
+            isinstance(item, dict) for item in errors
+        ):
+            raise ValueError("manifest.json errors must be an array of objects")
+        if not isinstance(outputs, dict):
+            raise ValueError("manifest.json outputs must be an object")
+        if not isinstance(models, dict):
+            raise ValueError("manifest.json models must be an object")
+        clean, summary = _run_vbook_refine(
+            raw_txt,
+            server=server,
+            ollama_url=ollama_url,
+            model=model,
+            timeout=timeout,
+        )
+    except (OSError, ValueError, RefineError) as e:
+        raise click.ClickException(f"vBook refine-only recovery failed: {e}") from e
+
+    clean_path = output_dir / "transcript.clean.txt"
+    summary_path = output_dir / "summary.md"
+    clean_path.write_text(clean, encoding="utf-8")
+    summary_path.write_text(summary, encoding="utf-8")
+
+    previous_errors = [
+        item for item in errors if item.get("stage") == "refine"
+    ]
+    manifest["errors"] = [
+        item for item in errors if item.get("stage") != "refine"
+    ]
+    manifest["status"] = "done"
+    outputs.update(
+        {
+            "clean_txt": clean_path.name,
+            "summary_md": summary_path.name,
+        }
+    )
+    manifest["outputs"] = outputs
+    models["refine"] = model
+    manifest["models"] = models
+    manifest["recovery"] = {
+        "mode": (
+            "chunked_refine_only"
+            if len(raw_txt) > REFINE_CHUNK_CHARS
+            else "refine_only"
+        ),
+        "source": input_path.name,
+        "chunk_chars": REFINE_CHUNK_CHARS,
+        "recovered_at": _utc_now(),
+        "previous_errors": previous_errors,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    click.echo(f"Recovered vBook bundle in {output_dir}", err=True)
+
+
 def _transcribe_vbook_bundle(
     input_path: Path,
     *,
@@ -214,7 +353,6 @@ def _transcribe_vbook_bundle(
     refine: bool = False,
     ollama_url: str = "http://localhost:11434",
     refine_model: str = "qwen3.5:9b",
-    refine_mode: str = "auto",
     llm_timeout: int = 300,
 ) -> None:
     """Transcribe one file into the vBook stable artifact bundle."""
@@ -294,12 +432,11 @@ def _transcribe_vbook_bundle(
         if refine:
             try:
                 click.echo("Refining: correcting + structuring...", err=True)
-                clean, summary = refine_text(
+                clean, summary = _run_vbook_refine(
                     raw_txt,
+                    server=server,
                     ollama_url=ollama_url,
                     model=refine_model,
-                    server_url=server,
-                    mode=refine_mode,
                     timeout=llm_timeout,
                 )
                 clean_path = output_dir / "transcript.clean.txt"

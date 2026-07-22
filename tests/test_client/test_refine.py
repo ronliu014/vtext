@@ -6,10 +6,13 @@ from unittest.mock import patch
 
 from vtext_client.refine import (
     CORRECT_SYSTEM_PROMPT,
+    REFINE_CHUNK_CHARS,
     STRUCTURE_SYSTEM_PROMPT,
     _dispatch,
     _strip_think,
     refine_text,
+    refine_text_chunked,
+    split_refine_chunks,
     to_simplified,
 )
 from vtext_client.errors import RefineError
@@ -120,3 +123,62 @@ class TestRefinePipeline:
         with patch("vtext_client.refine._dispatch", side_effect=Exception("boom")):
             with pytest.raises(RefineError):
                 refine_text("x", mode="direct", **OPTS)
+
+
+class TestChunkedRefine:
+    def test_split_preserves_text_and_limit(self):
+        text = "第一句。第二句！第三句没有标点"
+        chunks = split_refine_chunks(text, max_chars=6)
+
+        assert "".join(chunks) == text
+        assert all(0 < len(chunk) <= 6 for chunk in chunks)
+
+    def test_default_chunk_limit(self):
+        chunks = split_refine_chunks("字" * (REFINE_CHUNK_CHARS + 1))
+
+        assert [len(chunk) for chunk in chunks] == [REFINE_CHUNK_CHARS, 1]
+
+    def test_rejects_non_positive_limit(self):
+        with pytest.raises(ValueError):
+            split_refine_chunks("text", max_chars=0)
+
+    def test_refines_each_chunk_and_nests_summary_headings(self):
+        progress = []
+
+        with patch(
+            "vtext_client.refine.correct_text",
+            side_effect=lambda text, **kwargs: f"clean:{text}",
+        ) as correct, patch(
+            "vtext_client.refine.structure_text",
+            side_effect=lambda text, **kwargs: f"# summary\n{text}",
+        ) as structure:
+            clean, summary = refine_text_chunked(
+                "甲。乙。",
+                chunk_chars=2,
+                on_progress=lambda index, total, stage: progress.append(
+                    (index, total, stage)
+                ),
+                mode="server",
+                **OPTS,
+            )
+
+        assert clean == "clean:甲。\n\nclean:乙。"
+        assert summary.startswith("# 分段整理")
+        assert "## 第 1 部分" in summary
+        assert "### summary" in summary
+        assert correct.call_count == 2
+        assert structure.call_count == 2
+        assert progress == [
+            (1, 2, "correct"),
+            (1, 2, "structure"),
+            (2, 2, "correct"),
+            (2, 2, "structure"),
+        ]
+
+    def test_reports_failed_chunk(self):
+        with patch(
+            "vtext_client.refine.correct_text",
+            side_effect=["clean:甲。", RefineError("timeout")],
+        ), patch("vtext_client.refine.structure_text", return_value="# summary"):
+            with pytest.raises(RefineError, match="chunk 2/2"):
+                refine_text_chunked("甲。乙。", chunk_chars=2, mode="server", **OPTS)

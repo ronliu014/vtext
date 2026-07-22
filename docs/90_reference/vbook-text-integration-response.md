@@ -104,6 +104,11 @@ text. When refine fails, vtext writes explicit fallback files derived from the
 raw transcript, keeps the bundle layout complete, and records the refine error
 in the manifest.
 
+For long transcripts, vtext uses 6,000-character sentence-bounded chunks and
+assembles corrected/structured output in source order. Existing bundles can be
+recovered without ASR by combining `--refine-only --bundle vbook` with the
+existing `transcript.raw.txt` and output directory.
+
 ## Manifest Support
 
 vtext provides `manifest.json` for `--bundle vbook`. Schema version is `1`.
@@ -196,6 +201,8 @@ vBook bundle behavior:
   `errors[]` with stage `refine`. vtext still writes `transcript.clean.txt` and
   `summary.md` fallback files derived from the raw transcript so vBook does not
   receive an exit-0 bundle with missing required outputs.
+- Successful refine-only recovery clears active refine errors and preserves
+  them under `recovery.previous_errors`; it never rewrites the raw transcript.
 
 Stable error stages:
 
