@@ -1,0 +1,92 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "a9c13f2b",
+  "seq": 12,
+  "ts": "2026-07-22T03:00:44Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.investigate.response",
+  "in_reply_to": "d043efbf",
+  "expects_reply": false,
+  "payload": {
+    "subject": "Allwin wave 009 server-to-GPU refine timeout investigation",
+    "status": "diagnosed",
+    "root_cause": "Both production attempts reached the Linux vtext server and then the GPU Ollama endpoint, but the full single-transcript refine request exceeded the deployed 900s LLM relay read timeout. The evidence points to lesson-size / full-output refine cost, not a broken network path, dead LLM worker, ASR outage, or wrong GPU ownership boundary.",
+    "active_service": {
+      "server": "http://192.168.0.122:8000",
+      "ollama_url": "http://192.168.0.33:7866",
+      "llm_timeout": 900,
+      "llm_workers": 1,
+      "asr_workers": 2,
+      "model": "small",
+      "service_unit": "vtext-server.service",
+      "main_pid": 276330
+    },
+    "attempt_evidence": [
+      {
+        "attempt": 1,
+        "window_local": "2026-07-21 19:39:45/20:23:29 Asia/Shanghai",
+        "asr_job_id": "7f7ece08",
+        "asr_done": "2026-07-21 20:08:55",
+        "asr_elapsed_seconds": 1707.7,
+        "segments": 1623,
+        "llm_job_id": "b8e5de78",
+        "llm_start": "2026-07-21 20:08:59",
+        "llm_error": "2026-07-21 20:24:00",
+        "llm_elapsed_seconds": 900.1,
+        "exception": "requests.exceptions.ReadTimeout: HTTPConnectionPool(host='192.168.0.33', port=7866): Read timed out. (read timeout=900)"
+      },
+      {
+        "attempt": 2,
+        "window_local": "2026-07-21 20:23:29/21:08:25 Asia/Shanghai",
+        "asr_job_id": "b90925d3",
+        "asr_done": "2026-07-21 20:53:51",
+        "asr_elapsed_seconds": 1784.5,
+        "segments": 1623,
+        "llm_job_id": "d98a5348",
+        "llm_start": "2026-07-21 20:53:55",
+        "llm_error": "2026-07-21 21:08:55",
+        "llm_elapsed_seconds": 900.0,
+        "exception": "requests.exceptions.ReadTimeout: HTTPConnectionPool(host='192.168.0.33', port=7866): Read timed out. (read timeout=900)"
+      }
+    ],
+    "worker_health": {
+      "after_attempt_1": "The worker accepted the next transcription request at 2026-07-21 20:24:06 after b8e5de78 timed out.",
+      "after_attempt_2": "The LLM worker immediately started queued job 4e888dc9 at 2026-07-21 21:08:55 after d98a5348 timed out.",
+      "current_health": "GET /health returned status=ok, ASR workers=0/2 busy, ASR queue=0/16, LLM workers=0/1 busy, LLM queue=0/16."
+    },
+    "connectivity_checks": {
+      "gpu_tags": "GET http://192.168.0.33:7866/api/tags succeeded and listed qwen3.5:9b.",
+      "gpu_short_chat": "POST http://192.168.0.33:7866/api/chat with qwen3.5:9b succeeded in about 5.6s.",
+      "server_short_relay": "POST /llm/chat through http://127.0.0.1:8000 completed job be55d63e in 0.5s.",
+      "server_long_probe": "A controlled 45,500-character relay probe completed job ba79f853 in 15.4s with short output.",
+      "gpu_model_state": "GET /api/ps showed qwen3.5:9b resident, context_length=32768, size_vram=9876742784.",
+      "gpu_version": "Ollama /api/version returned 0.20.7."
+    },
+    "service_side_change": {
+      "changed": false,
+      "reason": "No additional Linux service change is recommended for this incident. The known 300s blocker was already removed by llm_timeout=900. The remaining failure is a full-transcript refine shape that can still exceed 900s."
+    },
+    "recommended_correction": {
+      "owner": "wcodex/client artifact side",
+      "summary": "Recover the failed lesson with a chunked refine path over existing raw transcript artifacts, then assemble contract-complete clean and summary outputs. Do not rerun ASR unless raw transcript validation fails.",
+      "details": [
+        "Split transcript.raw.txt or transcript.raw.srt into bounded chunks before correction.",
+        "Run correction on each chunk via the server relay, preserving order.",
+        "Assemble transcript.clean.txt from corrected chunks.",
+        "Generate summary.md from chunk summaries or from a bounded clean-text summary pass.",
+        "Write manifest errors/warnings explicitly if any chunk falls back.",
+        "Keep production GPU ownership on the Linux server; do not point Windows/vBook directly at 192.168.0.33."
+      ]
+    },
+    "vbook_guidance": {
+      "disposition": "keep wave 009 paused until chunked refine recovery is available",
+      "retry": "Do not perform another same-shape full-transcript refine retry through the current single request path; it is likely to hit the same 900s timeout.",
+      "safe_recovery": "Use targeted refine-only recovery from existing raw outputs with chunking, then revalidate the bundle contract."
+    },
+    "notes": [
+      "GPU-side host shell logs were not available from the Linux vtext session; available GPU evidence came from Ollama HTTP APIs.",
+      "No service restart was performed during this investigation."
+    ]
+  }
+}
