@@ -6,7 +6,12 @@ import pytest
 from click.testing import CliRunner
 
 from vtext_client.cli import cli
-from vtext_client.errors import QueueFullError, ServerConnectionError, VtextClientError
+from vtext_client.errors import (
+    QueueFullError,
+    RefineError,
+    ServerConnectionError,
+    VtextClientError,
+)
 from vtext_common.types import Segment, TranscriptionResult
 
 
@@ -209,7 +214,10 @@ class TestTranscribeFile:
              patch("vtext_client.cli.maybe_compress", return_value=(wav, None)), \
              patch("vtext_client.cli.submit_job", return_value="abc12345"), \
              patch("vtext_client.cli.stream_progress", return_value=result), \
-             patch("vtext_client.cli.refine_text", return_value=("Clean text", "# Summary")):
+             patch(
+                 "vtext_client.cli.refine_text",
+                 return_value=("Clean text", "# Summary"),
+             ) as mock_refine:
             r = runner.invoke(
                 cli,
                 [
@@ -243,6 +251,89 @@ class TestTranscribeFile:
             "summary_md": "summary.md",
         }
         assert manifest["errors"] == []
+        assert mock_refine.call_args.kwargs["mode"] == "server"
+
+    def test_vbook_bundle_rejects_direct_refine(self, runner, tmp_path):
+        input_file = tmp_path / "lesson.mp4"
+        input_file.touch()
+
+        r = runner.invoke(
+            cli,
+            [
+                str(input_file),
+                "--bundle",
+                "vbook",
+                "--output",
+                str(tmp_path / "out"),
+                "--refine-mode",
+                "direct",
+            ],
+        )
+
+        assert r.exit_code == 2
+        assert "requires server-side refine" in r.output
+
+    def test_vbook_bundle_rejects_disabled_refine(self, runner, tmp_path):
+        input_file = tmp_path / "lesson.mp4"
+        input_file.touch()
+
+        r = runner.invoke(
+            cli,
+            [
+                str(input_file),
+                "--bundle",
+                "vbook",
+                "--output",
+                str(tmp_path / "out"),
+                "--no-refine",
+            ],
+        )
+
+        assert r.exit_code == 2
+        assert "requires refine to be enabled" in r.output
+
+    def test_vbook_bundle_writes_fallback_outputs_when_refine_fails(self, runner, tmp_path):
+        course_dir = tmp_path / "course"
+        series_dir = course_dir / "series"
+        series_dir.mkdir(parents=True)
+        input_file = series_dir / "lesson.mp4"
+        input_file.touch()
+        out_dir = tmp_path / "out"
+        wav = tmp_path / "lesson.wav"
+        wav.touch()
+        result = make_result("Raw ASR text")
+
+        with patch("vtext_client.cli.extract_wav", return_value=wav), \
+             patch("vtext_client.cli.maybe_compress", return_value=(wav, None)), \
+             patch("vtext_client.cli.submit_job", return_value="abc12345"), \
+             patch("vtext_client.cli.stream_progress", return_value=result), \
+             patch("vtext_client.cli.refine_text", side_effect=RefineError("llm timeout")):
+            r = runner.invoke(
+                cli,
+                [
+                    str(input_file),
+                    "--bundle",
+                    "vbook",
+                    "-o",
+                    str(out_dir),
+                    "-f",
+                    "srt",
+                    "-l",
+                    "zh",
+                ],
+            )
+
+        assert r.exit_code == 0
+        assert (out_dir / "transcript.clean.txt").read_text(encoding="utf-8") == "Raw ASR text"
+        summary = (out_dir / "summary.md").read_text(encoding="utf-8")
+        assert "vtext refine was unavailable" in summary
+        assert "Raw ASR text" in summary
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["status"] == "done"
+        assert manifest["outputs"]["clean_txt"] == "transcript.clean.txt"
+        assert manifest["outputs"]["summary_md"] == "summary.md"
+        assert manifest["errors"][0]["stage"] == "refine"
+        assert manifest["errors"][0]["code"] == "refine_error"
 
     def test_vbook_bundle_writes_failed_manifest_on_transcription_error(self, runner, tmp_path):
         input_file = tmp_path / "course" / "series" / "lesson.mp4"

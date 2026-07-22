@@ -111,6 +111,13 @@ def _build_cli():
         if bundle == "vbook":
             if not output or output == "-":
                 raise click.UsageError("--bundle vbook requires --output <lesson-output-dir>.")
+            if not refine:
+                raise click.UsageError("--bundle vbook requires refine to be enabled.")
+            if refine_mode == "direct":
+                raise click.UsageError(
+                    "--bundle vbook requires server-side refine; "
+                    "use --refine-mode server or auto."
+                )
             _transcribe_vbook_bundle(
                 input_path,
                 server=server,
@@ -122,7 +129,7 @@ def _build_cli():
                 refine=refine,
                 ollama_url=ollama_url,
                 refine_model=refine_model,
-                refine_mode=refine_mode,
+                refine_mode="server",
                 llm_timeout=cfg.llm_timeout,
             )
             return
@@ -164,6 +171,35 @@ def _manifest_error_code(exc: Exception) -> str:
     if isinstance(exc, VtextClientError):
         return "client_error"
     return "unexpected_error"
+
+
+def _write_vbook_refine_fallback(
+    output_dir: Path,
+    *,
+    raw_txt: str,
+    lesson_title: str,
+    reason: str,
+) -> tuple[Path, Path]:
+    """Write contract-complete vBook fallback files when LLM refine is unavailable."""
+    clean = to_simplified(raw_txt)
+    summary = "\n\n".join(
+        [
+            f"# {lesson_title}",
+            (
+                "> vtext refine was unavailable for this run. This fallback file "
+                "keeps the vBook bundle contract complete and preserves the raw "
+                "transcript evidence for downstream processing."
+            ),
+            f"> Reason: {reason}",
+            "## Transcript",
+            clean,
+        ]
+    )
+    clean_path = output_dir / "transcript.clean.txt"
+    summary_path = output_dir / "summary.md"
+    clean_path.write_text(clean, encoding="utf-8")
+    summary_path.write_text(summary, encoding="utf-8")
+    return clean_path, summary_path
 
 
 def _transcribe_vbook_bundle(
@@ -276,7 +312,17 @@ def _transcribe_vbook_bundle(
                 click.echo(f"Saved to {summary_path}", err=True)
             except RefineError as e:
                 errors.append(error_entry("refine", _manifest_error_code(e), e))
+                clean_path, summary_path = _write_vbook_refine_fallback(
+                    output_dir,
+                    raw_txt=raw_txt,
+                    lesson_title=lesson_title,
+                    reason=str(e),
+                )
+                outputs["clean_txt"] = clean_path.name
+                outputs["summary_md"] = summary_path.name
                 click.echo(f"Warning: refine skipped: {e}", err=True)
+                click.echo(f"Saved fallback to {clean_path}", err=True)
+                click.echo(f"Saved fallback to {summary_path}", err=True)
 
         write_manifest("done")
         click.echo(f"Saved vBook bundle to {output_dir}", err=True)

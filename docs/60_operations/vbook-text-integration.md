@@ -18,13 +18,13 @@ without importing or vendoring vtext internals.
 ```powershell
 & 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
   --check-server `
-  --server "http://127.0.0.1:8000"
+  --server "http://192.168.0.122:8000"
 ```
 
 Expected result:
 
 ```text
-Server: http://127.0.0.1:8000
+Server: http://192.168.0.122:8000
 Status: ok
 Model:  <configured-model>
 Queue:  <size>/<max>
@@ -36,7 +36,7 @@ Workers: <busy>/<total> busy
 ```powershell
 & 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
   "<video-path>" `
-  --server "http://127.0.0.1:8000" `
+  --server "http://192.168.0.122:8000" `
   --bundle vbook `
   --output "<lesson-output-dir>" `
   --format srt `
@@ -44,6 +44,12 @@ Workers: <busy>/<total> busy
 ```
 
 Use one command per lesson for the first vBook integration pass.
+
+For `--bundle vbook`, vtext always sends refine requests through the server LLM
+relay. The default `auto` mode resolves to `server`; explicit
+`--refine-mode direct` is rejected so the Windows CLI cannot bypass the
+production server boundary. `--no-refine` is also rejected because it would
+make the required bundle incomplete.
 
 ## Expected Output
 
@@ -91,8 +97,10 @@ the output directory can be created:
 }
 ```
 
-If refine fails, vtext keeps the raw transcript artifacts and records a
-`refine` error in `errors[]`. vBook can still consume raw text evidence.
+If refine fails, vtext keeps the raw transcript artifacts, writes fallback
+`transcript.clean.txt` and `summary.md` files derived from the raw transcript,
+and records a `refine` error in `errors[]`. vBook can still consume a complete
+bundle while seeing the degraded refine quality in the manifest.
 
 ## Common Issues
 
@@ -101,7 +109,9 @@ If refine fails, vtext keeps the raw transcript artifacts and records a
 - Queue full: retry later or use a less busy server.
 - Large files: client compresses WAV files at or above 100 MB, but server upload
   size and memory limits still apply.
-- Refine unavailable: confirm direct Ollama or server LLM relay configuration.
+- Refine unavailable: have `lcodex` inspect the vtext server LLM relay and its
+  upstream connection to GPU Ollama. Do not route the Windows CLI directly to
+  Ollama as a production workaround.
 - Chinese conversion test failures: use the `App` environment because it
   includes `opencc`.
 
@@ -109,4 +119,3 @@ If refine fails, vtext keeps the raw transcript artifacts and records a
 
 - [../20_architecture/output-contracts.md](../20_architecture/output-contracts.md)
 - [../90_reference/vbook-text-integration-response.md](../90_reference/vbook-text-integration-response.md)
-

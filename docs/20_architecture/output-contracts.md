@@ -46,6 +46,7 @@ The stable vBook bundle is enabled explicitly:
 ```powershell
 & 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
   "<video-path>" `
+  --server "http://192.168.0.122:8000" `
   --bundle vbook `
   --output "<lesson-output-dir>" `
   --format srt `
@@ -65,11 +66,19 @@ Output:
 
 Rules:
 
+- `--bundle vbook` always performs refine through the vtext server relay.
+  The default `auto` mode is resolved to `server`; explicit `direct` mode is
+  rejected for this production contract.
+- `--no-refine` and a disabled client refine configuration are rejected for
+  `--bundle vbook` because they cannot satisfy the required artifact layout.
 - `transcript.raw.txt` is produced after successful transcription.
 - `transcript.raw.srt` is produced when `--format srt` is used.
-- `transcript.clean.txt` and `summary.md` are produced when refine succeeds.
-- Refine failure is recorded in `manifest.json` but does not invalidate the raw
-  transcript artifacts.
+- `transcript.clean.txt` and `summary.md` are always produced after successful
+  transcription. When refine succeeds they contain LLM-corrected/structured
+  text. When refine fails, vtext writes explicit fallback files derived from the
+  raw transcript so the vBook bundle contract remains complete.
+- Refine failure is recorded in `manifest.json` `errors[]` but does not
+  invalidate the transcript artifacts or the bundle layout.
 - Transcription failure exits non-zero and writes a failed manifest when the
   output directory can be created.
 
@@ -129,4 +138,3 @@ Stable error codes:
 - `client_error`
 - `refine_error`
 - `unexpected_error`
-

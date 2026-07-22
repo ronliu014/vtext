@@ -25,13 +25,13 @@ extension vtext provides for vBook.
 Current health check:
 
 ```powershell
-python -m vtext_client --check-server --server "http://127.0.0.1:8000"
+python -m vtext_client --check-server --server "http://192.168.0.122:8000"
 ```
 
 Current single-video transcription:
 
 ```powershell
-python -m vtext_client "<video-path>" --server "http://127.0.0.1:8000" --format srt --language zh
+python -m vtext_client "<video-path>" --server "http://192.168.0.122:8000" --format srt --language zh
 ```
 
 Current single-video transcription with explicit raw output location:
@@ -49,16 +49,19 @@ python -m vtext_client "<input-root>" --output "<output-root>" --format srt --la
 vBook integration command, added as the stable contract:
 
 ```powershell
-python -m vtext_client "<video-path>" --bundle vbook --output "<lesson-output-dir>" --format srt --language zh
+python -m vtext_client "<video-path>" --server "http://192.168.0.122:8000" --bundle vbook --output "<lesson-output-dir>" --format srt --language zh
 ```
 
 Notes:
 
 - `--bundle vbook` is single-video only in the first implementation.
 - `--output` must be a directory when `--bundle vbook` is used.
+- `--bundle vbook` always routes refine through the vtext server. Its default
+  `auto` mode resolves to `server`, and explicit `direct` mode is rejected.
 - vBook should pass `--format srt` when it needs `transcript.raw.srt`.
-- vtext refine is enabled by default unless client config disables it or the user
-  passes `--no-refine`.
+- vtext refine must remain enabled for `--bundle vbook`; `--no-refine` and a
+  disabled client refine configuration are rejected because they cannot satisfy
+  the required artifact layout.
 
 ## Current Single-Video Output Layout
 
@@ -95,9 +98,11 @@ With `--bundle vbook`, vtext writes a stable per-lesson bundle:
 requested, vtext may also produce `transcript.raw.<format>`, but vBook should use
 `--format srt` for the first integration pass.
 
-`transcript.clean.txt` and `summary.md` are produced when refine succeeds. Refine
-failure is non-fatal: the raw transcript files and manifest remain available, and
-the manifest records the refine error.
+`transcript.clean.txt` and `summary.md` are produced for every successful
+transcription. When refine succeeds, they contain LLM-corrected and structured
+text. When refine fails, vtext writes explicit fallback files derived from the
+raw transcript, keeps the bundle layout complete, and records the refine error
+in the manifest.
 
 ## Manifest Support
 
@@ -188,7 +193,9 @@ vBook bundle behavior:
 - Exit `1`: transcription failed; vtext writes `manifest.json` with status
   `failed` when the output directory can be created.
 - Refine failure does not change the exit code to `1`; it is recorded in
-  `errors[]` with stage `refine`, and raw transcript artifacts remain usable.
+  `errors[]` with stage `refine`. vtext still writes `transcript.clean.txt` and
+  `summary.md` fallback files derived from the raw transcript so vBook does not
+  receive an exit-0 bundle with missing required outputs.
 
 Stable error stages:
 
@@ -256,12 +263,12 @@ Server-side dependencies:
 - running `vtext-server`
 - configured whisper.cpp binary
 - configured whisper.cpp model
-- optional Ollama or vtext server LLM relay for refine
+- reachable vtext server LLM relay for vBook bundle refine
 
 Health command:
 
 ```powershell
-python -m vtext_client --check-server --server "http://127.0.0.1:8000"
+python -m vtext_client --check-server --server "http://192.168.0.122:8000"
 ```
 
 ## Large-File And Service Limits
@@ -320,6 +327,5 @@ The first priority remains contract clarity, not cosmetic reorganization.
   path inference acceptable for the first fixture?
 - Does vBook need batch-level manifest support before preview generation, or is
   one call per lesson acceptable for the first integration pass?
-- Should refine failure make the lesson status `done` with a warning, or
-  `partial`? vtext proposes `done` with a `refine` error because raw transcript
-  evidence remains valid.
+- Should vBook surface fallback refine quality in operator dashboards, or is
+  reading `manifest.json` `errors[]` sufficient for the first production pass?
