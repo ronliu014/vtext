@@ -46,11 +46,12 @@ Workers: <busy>/<total> busy
 Use one command per lesson for the first vBook integration pass.
 
 For `--bundle vbook`, vtext always sends refine requests through the server LLM
-relay. Long transcripts are split at paragraph or sentence boundaries into bounded
-12,000-character chunks; every correction chunk must succeed before any complete
-refine result is returned. vision confirmed the 12,000-character value is acceptable when the encoded
-JSON request body stays at or below 2 MiB; it remains a vtext-owned policy,
-not an upstream API limit. The default `auto` mode resolves to `server`; explicit
+relay. Long transcripts use the published conservative 6,000-character vBook
+chunk policy; every bounded correction and structure call must succeed before
+any complete refine result is returned. Generic non-vBook refine defaults to a
+12,000-character cap, which vision confirmed acceptable when the encoded JSON
+request body stays at or below 2 MiB. Both values are vtext-owned policies, not
+upstream API limits. The default `auto` mode resolves to `server`; explicit
 `--refine-mode direct` is rejected so the Windows CLI cannot bypass the
 production server boundary. `--no-refine` is also rejected because it would
 make the required bundle incomplete.
@@ -105,6 +106,32 @@ If refine fails, vtext keeps the raw transcript artifacts, writes fallback
 `transcript.clean.txt` and `summary.md` files derived from the raw transcript,
 and records a `refine` error in `errors[]`. vBook can still consume a complete
 bundle while seeing the degraded refine quality in the manifest.
+
+Fallback output is not publication-quality text. Keep the affected lesson
+paused until a successful refine-only recovery clears the active refine error.
+
+## Refine-Only Recovery
+
+For a lesson whose raw transcript is valid, recover the existing bundle without
+rerunning ASR:
+
+```powershell
+& 'D:\anaconda3\envs\App\python.exe' -m vtext_client `
+  "<lesson-output-dir>/transcript.raw.txt" `
+  --server "http://192.168.0.122:8000" `
+  --refine-only `
+  --bundle vbook `
+  --output "<lesson-output-dir>"
+```
+
+Long transcripts are split into bounded 6,000-character chunks at sentence
+boundaries. Each chunk is corrected and structured through the Linux server
+relay, and outputs are assembled in source order. A successful recovery records
+the previous refine errors under `manifest.json recovery.previous_errors`.
+
+Revalidate all required outputs and the manifest before changing a terminal
+vBook run or removing an operator pause. Preserve the original task attempts as
+audit evidence.
 
 ## Common Issues
 

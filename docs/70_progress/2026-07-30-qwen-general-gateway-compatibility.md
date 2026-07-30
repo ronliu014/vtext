@@ -10,9 +10,10 @@ Status: implemented, committed, deployed, and validated
 - Pin the vtext refine baseline to qwen3.6:latest.
 - Keep vtext upstream requests non-streaming and preserve the deployed 900-second
   caller timeout. The gateway still owns its 300-second read/write inactivity timeout.
-- Use a vtext-owned 12,000-character maximum for refine chunks. vision confirmed
-  this is acceptable when the final JSON request body stays at or below 2 MiB;
-  the chunk size remains a vtext policy, not a qwen-general requirement.
+- Use a vtext-owned 12,000-character maximum for generic refine chunks. vision
+  confirmed this is acceptable when the final JSON request body stays at or
+  below 2 MiB. The published vBook production/recovery path remains at its
+  conservative 6,000-character cap; neither value is a qwen-general requirement.
 
 ## Compatibility Work
 
@@ -45,8 +46,8 @@ Status: implemented, committed, deployed, and validated
   request measured 75,147 encoded bytes and completed with HTTP 200 in 29.1
   seconds; structure request measured 2,048 encoded bytes and completed with
   HTTP 200 in 12.0 seconds; combined client refine time was 41.279 seconds.
-- Focused gateway compatibility matrix: 47 passed.
-- Full repository suite: 257 passed.
+- Focused gateway compatibility matrix after remote recovery integration: 53 passed.
+- Full repository suite after merge: 266 passed.
 - Ruff passed for the changed runtime modules and focused compatibility tests.
 - Production `:8000` runs commit `886b5b4`. Local and LAN health return
   `contract_version=1.1.0`, qwen3.6, non-streaming mode, a 900-second caller

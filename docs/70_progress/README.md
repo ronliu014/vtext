@@ -9,4 +9,3 @@ operations documents.
 - [2026-07-30-session-handoff.md](./2026-07-30-session-handoff.md)
 - [2026-07-30-qwen-general-gateway-compatibility.md](./2026-07-30-qwen-general-gateway-compatibility.md)
 - [2026-07-07-vbook-text-contract.md](./2026-07-07-vbook-text-contract.md)
-

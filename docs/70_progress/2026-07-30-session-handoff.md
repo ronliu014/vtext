@@ -1,76 +1,186 @@
-# Session Handoff: qwen-general Compatibility
+# 2026-07-30 Session Handoff
 
 Date: 2026-07-30
-Source branch: `main`
-Implementation commit: `886b5b4`
-Working tree: clean after implementation commit; production deployment complete
+Branch: `main`
+Scope: wave 009 recovery, qwen-general compatibility, and production deployment
 
-## Objective
+## Current State
 
-Complete the vtext compatibility work for the vision-owned qwen-general
-gateway, preserve the confirmed contract, and hand off the reviewed production
-state.
+- The remote Windows-side work in `ad22455` adds 6,000-character vBook
+  chunking and `--refine-only --bundle vbook` recovery with manifest audit
+  history.
+- The Linux-side implementation in `886b5b4` binds the relay to
+  qwen-general OpenAPI 1.1.0, qwen3.6, request correlation, structured errors,
+  a 2 MiB body guard, and validated completion semantics.
+- Production `192.168.0.122:8000` runs the server implementation from
+  `886b5b4`; local and LAN health expose `contract_version=1.1.0`.
+- Deployment evidence is recorded in `fd434c1`.
+- The cross-project validation response is on the vsync remote in `2d7d795`.
 
-## Production Boundary
-
-The production request path is fixed:
+## Fixed Ownership And Request Path
 
 ```text
-vBook on Windows 192.168.5.1
-  -> local vtext CLI
-  -> vtext server / LLM relay at 192.168.0.122:8000
-  -> qwen-general at vision.lingrengame.com:7866
+Windows 192.168.5.1, owner wcodex
+vBook -> local vtext CLI
+          |
+          | HTTP / SSE
+          v
+Linux 192.168.0.122:8000, owner lcodex
+vtext server / LLM relay
+          |
+          | Ollama-compatible HTTP API
+          v
+vision.lingrengame.com:7866
+qwen-general gateway
 ```
 
-The Windows client and vBook must not call the GPU gateway directly. Keep
-`sync/` for intra-vtext Windows/Linux coordination and use `vsync` for
-cross-project communication with vision and vBook.
+Durable boundaries:
 
-## Implemented In Commit `886b5b4`
+- vBook may use only the stable vtext CLI, HTTP API, and artifact contracts.
+- Windows and vBook must not connect directly to the GPU gateway or raw Ollama.
+- `sync/` is the internal wcodex/lcodex Git mailbox.
+- `vsync` is the cross-project mailbox for vtext, vBook, and vision.
+- Linux service configuration, logs, restarts, and upstream model calls belong
+  to lcodex.
 
-- Migrated the vision-owned production endpoint from the numeric host to
-  `http://vision.lingrengame.com:7866`.
-- Pinned the refine baseline to `qwen3.6:latest`.
-- Preserved non-streaming upstream requests and the deployed 900-second vtext
-  caller timeout. The gateway still owns a separate 300-second read/write
-  inactivity timeout.
-- Added end-to-end `X-Request-ID` propagation and relay metadata for upstream
-  status, error code, error source, and latency.
-- Added a pre-queue 2 MiB JSON request-size guard.
-- Hardened HTTP and SSE handling for 413, 503, timeout, transport failure,
-  malformed JSON, missing done=true, empty content, invalid SSE JSON, and premature SSE EOF.
-- Made multi-chunk refine atomic: correction and structure output is published
-  only after every chunk succeeds. Existing vBook schema-v1 fallback remains
-  explicit in the manifest and artifact content.
-- Added focused client, server, and integration compatibility tests and updated
-  architecture, operations, status, and vBook integration documentation.
+## Relevant History
 
-The detailed implementation and evidence snapshot is in
-`docs/70_progress/2026-07-30-qwen-general-gateway-compatibility.md`.
+| Commit | Result |
+| --- | --- |
+| `7b6687b` | Documented Windows/Linux ownership boundaries |
+| `e67250d` | Documented the fixed production request path |
+| `e4b5df5` | Enforced the vBook server-relay and fallback contract |
+| `ac289ce` | Sent the wave 009 Linux investigation request through `sync/` |
+| `5f290c6` | Integrated the wave 009 Linux diagnosis |
+| `ad22455` | Added chunked vBook refine and refine-only bundle recovery |
+| `886b5b4` | Added qwen-general OpenAPI 1.1.0 compatibility |
+| `fd434c1` | Recorded production deployment evidence |
 
-## Verification And Deployment Evidence
+## Wave 009 Diagnosis
 
-- Full repository suite: `257 passed` after the final contract review.
-- Focused gateway compatibility matrix: `47 passed`.
-- Ruff passed for the new compatibility tests and changed runtime modules.
-  Four unused-import reports in two legacy config test modules were pre-existing.
-- Production `:8000` now runs the final contract-binding implementation.
-  Local and LAN health report `contract_version=1.1.0`, `qwen3.6:latest`,
-  non-streaming mode, a 900-second caller timeout, a 2 MiB request guard, and
-  empty ASR/LLM queues.
-- Post-deploy relay smoke `vtext-prod-9b53670df111` completed with submission
-  HTTP 201, terminal SSE done, upstream HTTP 200, preserved request ID, and
-  12.271 seconds upstream latency.
-- Direct qwen-general and vtext relay smoke requests returned HTTP 200 with
-  correlated request IDs.
-- Live oversized requests were rejected with HTTP 413 before relay queueing.
-- A synthetic three-chunk refine completed all six upstream calls successfully.
+Failed production item:
 
-These checks were completed before this handoff. Re-run the relevant focused
-tests after any contract-driven code change; do not treat the synthetic chunk
-smoke as proof that a 12,000-character chunk fits inside the gateway deadline.
+```text
+run_id: R20260720-vtext-wave-009
+task_id: 001-ec54d159110f
+lesson: 量化模式/主升浪战法/前途无量模式—跟踪高控盘主力的利器
+```
+
+Both failed attempts reached the Linux vtext server and GPU service. ASR
+completed twice with 1,623 segments. The two full-transcript LLM jobs timed out
+after approximately 900 seconds. Worker health, queue health, short relay calls,
+and a 45,500-character bounded-output probe were healthy.
+
+The root cause was the long-output request shape, not Windows localhost,
+networking, dead workers, ASR failure, or incorrect GPU ownership.
+
+Internal evidence:
+
+```text
+sync/s2c/000012-20260722T030044Z-a9c13f2b.json
+in_reply_to: d043efbf
+```
+
+## Wave 009 Controlled Recovery
+
+The operator explicitly authorized a targeted recovery on 2026-07-22. The
+existing raw transcript was processed through the server relay in three
+6,000-character chunks, for six correction/structure calls. ASR was not rerun.
+
+Artifact path:
+
+```text
+E:/projects/my_app/vbook/outputs/production-artifacts/vtext-wave-009/001-ec54d159110f
+```
+
+Validated result:
+
+```text
+manifest.status=done
+manifest.errors=[]
+outputs.raw_txt=true
+outputs.raw_srt=true
+outputs.clean_txt=true
+outputs.summary_md=true
+recovery.mode=chunked_refine_only
+recovery.source=transcript.raw.txt
+recovery.chunk_chars=6000
+recovery.previous_errors count=1
+recovery.recovered_at=2026-07-22T03:41:11Z
+```
+
+The raw transcript SHA-256 remained unchanged:
+
+```text
+430A75970CB943B2AD4C6F81CC8CE986A5A7CF1C8A59F9F168D9084EAE18E702
+```
+
+Do not rerun wave 009 ASR/refine, delete `control/pause.request`, or rewrite
+the two failed vBook attempts without a new explicit operator decision. vBook
+owns artifact reconciliation and pause resolution.
+
+The recovery result is recorded in vsync commits `63a933f` and `c85ba19`.
+
+## Integrated Refine Policies
+
+- Generic refine uses `DEFAULT_REFINE_CHUNK_CHARS=12000`. vision confirmed
+  this vtext-owned policy is acceptable when the final encoded request body is
+  at or below 2 MiB.
+- vBook production and refine-only recovery retain the published conservative
+  `REFINE_CHUNK_CHARS=6000` contract from `ad22455`.
+- Both paths use qwen3.6 options `temperature=0.4`, `num_ctx=32768`, and
+  `num_predict=1024`.
+- vBook always uses the Linux server relay. Direct mode and disabled refine are
+  rejected for vBook bundles.
+- A complete refine result is returned only after all bounded correction and
+  structure calls succeed.
+- Refine-only recovery preserves previous refine errors under
+  `manifest.recovery.previous_errors` and never rewrites raw transcripts.
+
+## qwen-general Contract
+
+- OpenAPI version: `1.1.0`.
+- Upstream path: `http://vision.lingrengame.com:7866/api/chat`.
+- Success requires HTTP 200, non-empty assistant content, and `done=true`.
+- Relay requests use `stream=false` and `think=false`.
+- Raw request-body limit: exactly 2,097,152 bytes.
+- Gateway timeout: 300-second read/write inactivity window.
+- vtext caller timeout: 900 seconds.
+- Request IDs are opaque 1-128 character values; invalid or missing values are
+  replaced with 32-character lowercase hexadecimal UUIDs.
+- Gateway errors and Ollama errors remain distinguishable in relay metadata.
+
+## Verification And Production Evidence
+
+- Post-merge focused compatibility matrix: `53 passed`.
+- Post-merge client/gateway/LLM integration matrix: `140 passed`.
+- Post-merge full Linux suite: `266 passed`.
+- Post-merge changed-file Ruff and `git diff --check`: passed.
+- Temporary current-code 12,000-character refine: correction request 75,147
+  encoded bytes, 29.1 seconds; structure request 2,048 bytes, 12.0 seconds.
+- Production health on both `127.0.0.1:8000` and
+  `192.168.0.122:8000`: HTTP 200, contract 1.1.0, qwen3.6, empty queues.
+- Production smoke `vtext-prod-9b53670df111`: submission HTTP 201, terminal
+  SSE done, upstream HTTP 200, request ID preserved, 12.271 seconds upstream
+  latency, queues zero afterward.
+
+The first deployment restart exposed an older vtext process detached from the
+current systemd unit cgroup and still holding `:8000`. Its queues were empty.
+It exited cleanly on SIGTERM; the port was verified free; the unit then started
+under its expected control group.
+
+Post-merge acceptance completed successfully across the full Linux suite,
+focused gateway tests, client recovery tests, changed-file Ruff, and
+`git diff --check`.
 
 ## External Coordination
+
+Canonical qwen-general messages:
+
+```text
+mailbox/messages/2026-07-30-vision-vtext-qwen-general-openapi-contract-clarification-response.md
+mailbox/messages/2026-07-30-vtext-vision-qwen-general-contract-validation-response.md
+```
 
 The company-approved private coordination remote is:
 
@@ -78,85 +188,22 @@ The company-approved private coordination remote is:
 https://github.com/ronliu014/vsync.git
 ```
 
-The qwen-general contract clarification request was committed as `e5dc6a7` and
-is present on remote `main` through merge commit `866bb60`. It asks vision to
-clarify `/api/chat` request and response schemas, request-ID behavior, body-size
-measurement, timeout and error mapping, streaming completion, and the supported
-long-refine budget.
+Do not use CCB. Do not conflate `sync/` and `vsync`.
 
-At handoff time, the message has been pushed but vision has not been confirmed
-to have pulled or replied. `vsync/v1` is a Git mailbox, so a push is delivery to
-the shared remote, not proof that the recipient has fetched it.
+## Remaining Ownership
 
-CCB is retired and must not be used for coordination. The local
-`@seemseam/ccb` npm package, wrappers, cache/state, CCB-only skills, projections,
-and `agentroles.ccb_self` role were removed and verified absent. Use `vsync` for
-durable cross-project messages and current Codex task tools only when task
-coordination is explicitly needed.
+- vBook owns reconciliation of the recovered wave 009 artifact and removal of
+  its pause after validation.
+- A Windows/vBook end-to-end lesson against the deployed relay remains useful
+  when a consumer fixture is available.
+- A separate post-deployment vsync message is optional; the contract validation
+  response is already delivered.
 
-## Remaining Decisions
+## Next Session Checklist
 
-1. Decide whether to push the local implementation and deployment-evidence
-   commits to `origin/main`.
-2. Run a Windows/vBook end-to-end lesson against the deployed relay when a
-   consumer fixture is available.
-
-## Post-Handoff Update
-
-After this handoff, vision replied through vsync with
-`2026-07-30-vision-vtext-qwen-general-openapi-contract-clarification-response.md`.
-The reply confirms qwen-general OpenAPI 1.1.0, `done=true` success semantics,
-2 MiB raw HTTP body limits, gateway-vs-Ollama error mapping, X-Request-ID
-normalization, streaming completion rules, a 300-second read/write inactivity
-timeout, and a conservative qwen3.6 refine profile of `stream=false`,
-`think=false`, `num_ctx=32768`, and `num_predict=1024`.
-
-The confirmed contract has now been bound in code and tests. Focused tests,
-the full suite, a temporary current-code Linux relay smoke, and a representative
-12,000-character refine run passed. The validation response was pushed to the
-vsync remote in commit `2d7d795`. The reviewed implementation was committed as
-`886b5b4`, deployed to production `:8000`, and verified through local/LAN
-health and a successful relay smoke.
-
-## Repository State
-
-The reviewed runtime, tests, and documentation are committed in `886b5b4`.
-The key runtime files are:
-
-```text
-vtext_client/api.py
-vtext_client/config.py
-vtext_client/refine.py
-vtext_server/app.py
-vtext_server/config.py
-vtext_server/llm_client.py
-vtext_server/llm_queue.py
-vtext_server/llm_worker.py
-```
-
-New compatibility files include:
-
-```text
-docs/70_progress/2026-07-30-qwen-general-gateway-compatibility.md
-tests/test_client/test_gateway_compat.py
-tests/test_integration/test_gateway_contract.py
-tests/test_server/test_llm_client.py
-```
-
-At completion, local `main` is clean with the implementation and
-deployment-evidence commits ahead of `origin/main`.
-
-## New Session Start
-
-Begin with:
-
-```sh
-sed -n '1,260p' docs/70_progress/2026-07-30-session-handoff.md
-sed -n '1,260p' docs/70_progress/2026-07-30-qwen-general-gateway-compatibility.md
-git status -sb
-git diff --stat
-```
-
-The vsync inbox now contains the vision contract response. Continue by applying
-the confirmed OpenAPI 1.1.0 contract, rerunning focused tests, and preparing the
-deliberate vtext commit after review.
+1. Read `AGENTS.md`, this handoff, and the qwen-general compatibility report.
+2. Run `git status --short --branch` before making changes.
+3. Preserve the fixed Windows -> Linux vtext -> vision request path.
+4. Do not rerun wave 009 or mutate vBook history without explicit approval.
+5. Use the Windows Anaconda `App` interpreter for Windows-side tests.
+6. Use `/mnt/data/profile/.pyenv/versions/3.13.2/bin/python3` on Linux.

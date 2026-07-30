@@ -11,9 +11,9 @@ Last updated: 2026-07-30
 - The production request path is vBook/Windows CLI -> Linux vtext service at
   192.168.0.122:8000 -> qwen-general at vision.lingrengame.com:7866.
 - The LLM refine baseline is explicitly pinned to qwen3.6:latest.
-- Long refine input is split into bounded correction and structure chunks. The
-  current 12,000-character cap is a vtext policy that vision confirmed acceptable
-  when the final encoded JSON request body stays at or below 2 MiB.
+- Long refine input is split into bounded correction and structure chunks.
+  Generic refine uses a 12,000-character cap accepted by vision; the published
+  vBook production/recovery contract keeps its conservative 6,000-character cap.
 - Relay jobs expose qwen-general OpenAPI 1.1.0 in health and preserve X-Request-ID,
   upstream HTTP status, error code, error source, and
   latency through status and SSE responses.
