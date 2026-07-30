@@ -4,10 +4,9 @@ Last updated: 2026-07-30
 
 ## Current State
 
-- After vision confirmed qwen-general OpenAPI 1.1.0, local compatibility tests
-  and a non-production live relay/representative refine validation pass with
-  the conservative qwen3.6 profile. Production `:8000` has not been restarted
-  with the dirty working tree.
+- The reviewed qwen-general OpenAPI 1.1.0 compatibility implementation is
+  committed as `886b5b4`, deployed on production `:8000`, and verified through
+  local/LAN health plus a successful end-to-end relay smoke.
 - vtext provides client/server audio and video transcription.
 - The production request path is vBook/Windows CLI -> Linux vtext service at
   192.168.0.122:8000 -> qwen-general at vision.lingrengame.com:7866.
@@ -37,9 +36,6 @@ Last updated: 2026-07-30
 - The vision-managed gateway has a 300-second read/write inactivity timeout.
   The deployed vtext 900-second caller timeout cannot extend that inactivity
   window.
-- The qwen-general OpenAPI 1.1.0 boundary has been validated with a temporary
-  current-code service. Production `:8000` still needs a reviewed deployment
-  and post-restart smoke test.
 - Server upload handling still reads the request body before writing temporary
   audio, so very large uploads are constrained by configured max size and memory.
 - The default/base Python environment may not include opencc; use the App

@@ -16,14 +16,16 @@ Last updated: 2026-07-30
 - Completed live qwen-general, temporary current-code vtext relay, and 12,000
   character representative refine validation with request-ID, request-size, and
   latency evidence.
+- Committed the reviewed implementation as `886b5b4`, deployed it to production
+  `:8000`, and completed local/LAN health plus a successful relay smoke.
 
 ## Next
 
 - Add explicit CLI metadata options for vBook bundle output:
   `--course`, `--series`, and `--lesson-title`.
 - Add sample success and failure manifests under `docs/90_reference/samples/`.
-- Create the reviewed vtext commit, then decide whether to deploy/restart
-  production `:8000` and run the post-restart relay smoke test.
+- Run one Windows/vBook lesson through the deployed relay when an end-to-end
+  consumer fixture is available.
 - Add batch-level manifest support if vBook needs course-scale invocation.
 
 ## Later

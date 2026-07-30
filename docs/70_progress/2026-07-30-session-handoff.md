@@ -2,13 +2,14 @@
 
 Date: 2026-07-30
 Source branch: `main`
-Working tree: intentionally dirty; do not reset or discard it
+Implementation commit: `886b5b4`
+Working tree: clean after implementation commit; production deployment complete
 
 ## Objective
 
-Continue the vtext compatibility work for the vision-owned qwen-general
-gateway, close the remaining upstream contract questions, and prepare the
-current implementation for a deliberate vtext commit and push after review.
+Complete the vtext compatibility work for the vision-owned qwen-general
+gateway, preserve the confirmed contract, and hand off the reviewed production
+state.
 
 ## Production Boundary
 
@@ -25,7 +26,7 @@ The Windows client and vBook must not call the GPU gateway directly. Keep
 `sync/` for intra-vtext Windows/Linux coordination and use `vsync` for
 cross-project communication with vision and vBook.
 
-## Implemented In The Current Working Tree
+## Implemented In Commit `886b5b4`
 
 - Migrated the vision-owned production endpoint from the numeric host to
   `http://vision.lingrengame.com:7866`.
@@ -53,11 +54,13 @@ The detailed implementation and evidence snapshot is in
 - Focused gateway compatibility matrix: `47 passed`.
 - Ruff passed for the new compatibility tests and changed runtime modules.
   Four unused-import reports in two legacy config test modules were pre-existing.
-- An earlier Linux service revision was restarted with the domain endpoint.
-  Health reported
-  `qwen3.6:latest`, non-streaming mode, a 900-second caller timeout, a 2 MiB request
-  guard, and empty ASR/LLM queues. The final contract-binding working tree has
-  not been deployed to production `:8000`.
+- Production `:8000` now runs the final contract-binding implementation.
+  Local and LAN health report `contract_version=1.1.0`, `qwen3.6:latest`,
+  non-streaming mode, a 900-second caller timeout, a 2 MiB request guard, and
+  empty ASR/LLM queues.
+- Post-deploy relay smoke `vtext-prod-9b53670df111` completed with submission
+  HTTP 201, terminal SSE done, upstream HTTP 200, preserved request ID, and
+  12.271 seconds upstream latency.
 - Direct qwen-general and vtext relay smoke requests returned HTTP 200 with
   correlated request IDs.
 - Live oversized requests were rejected with HTTP 413 before relay queueing.
@@ -93,9 +96,10 @@ coordination is explicitly needed.
 
 ## Remaining Decisions
 
-1. Create the deliberate vtext commit after final review and verification.
-2. Restart production `:8000` only with explicit user authorization, then run
-   health checks and a short production relay smoke test.
+1. Decide whether to push the local implementation and deployment-evidence
+   commits to `origin/main`.
+2. Run a Windows/vBook end-to-end lesson against the deployed relay when a
+   consumer fixture is available.
 
 ## Post-Handoff Update
 
@@ -110,13 +114,14 @@ timeout, and a conservative qwen3.6 refine profile of `stream=false`,
 The confirmed contract has now been bound in code and tests. Focused tests,
 the full suite, a temporary current-code Linux relay smoke, and a representative
 12,000-character refine run passed. The validation response was pushed to the
-vsync remote in commit `2d7d795`. Production `:8000` has not been restarted with
-the final working tree.
+vsync remote in commit `2d7d795`. The reviewed implementation was committed as
+`886b5b4`, deployed to production `:8000`, and verified through local/LAN
+health and a successful relay smoke.
 
-## Working Tree Safety
+## Repository State
 
-The current modifications include runtime, tests, and documentation. The key
-runtime files are:
+The reviewed runtime, tests, and documentation are committed in `886b5b4`.
+The key runtime files are:
 
 ```text
 vtext_client/api.py
@@ -138,9 +143,8 @@ tests/test_integration/test_gateway_contract.py
 tests/test_server/test_llm_client.py
 ```
 
-There are additional related modified client, server, test, and documentation
-files visible in `git status`. Treat all of them as active work. Do not run
-`git reset`, `git checkout --`, or otherwise revert them.
+At completion, local `main` is clean with the implementation and
+deployment-evidence commits ahead of `origin/main`.
 
 ## New Session Start
 

@@ -1,7 +1,7 @@
 # qwen-general Gateway Compatibility
 
 Date: 2026-07-30
-Status: implemented and validated; production deployment of current code pending
+Status: implemented, committed, deployed, and validated
 
 ## Decision
 
@@ -48,11 +48,20 @@ Status: implemented and validated; production deployment of current code pending
 - Focused gateway compatibility matrix: 47 passed.
 - Full repository suite: 257 passed.
 - Ruff passed for the changed runtime modules and focused compatibility tests.
-- Production `:8000` has not been restarted with the final contract-binding
-  working tree and does not yet expose `contract_version=1.1.0`.
+- Production `:8000` runs commit `886b5b4`. Local and LAN health return
+  `contract_version=1.1.0`, qwen3.6, non-streaming mode, a 900-second caller
+  timeout, the 2 MiB guard, and empty queues.
+- Post-deploy relay smoke request `vtext-prod-9b53670df111`: submission HTTP
+  201, terminal SSE done, exact non-empty result, request ID preserved end to
+  end, upstream HTTP 200, 12.271 seconds upstream latency, and both queues zero
+  afterward.
+- The first systemd restart attempt exposed an older vtext process detached from
+  the current unit cgroup and still holding `:8000`. Its queues were empty; it
+  was stopped with SIGTERM, the port was verified free, and the unit then
+  started cleanly under its expected control group.
 - The company-managed vision hostname was adopted and a post-clarification
   refresh of `http://vision.lingrengame.com:7866/openapi.json` confirmed
-  the live Qwen General API 1.1.0 contract Current service URLs use the hostname rather
+  the live Qwen General API 1.1.0 contract. Current service URLs use the hostname rather
   than the former numeric host address.
 - The deployed service was restarted with the domain endpoint. A post-restart
   relay chat completed with HTTP 200, a two-character result, end-to-end
@@ -74,8 +83,9 @@ Status: implemented and validated; production deployment of current code pending
 
 ## Remaining Work
 
-- Create the deliberate vtext commit after final review and verification.
-- Restart production `:8000` only with explicit user authorization, then verify
-  health and run a short production relay smoke test.
+- Decide whether to push the local implementation and deployment-evidence
+  commits to `origin/main`.
+- Run one Windows/vBook lesson end to end against the deployed relay when a
+  consumer fixture is available.
 - The validation response was delivered to vision through vsync remote `main`
-  in commit `2d7d795`.
+  in commit `2d7d795`; a separate post-deploy message is optional.
