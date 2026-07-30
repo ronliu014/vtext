@@ -111,7 +111,7 @@ Required top-level fields:
   },
   "models": {
     "asr": "small",
-    "refine": "qwen3.5:9b"
+    "refine": "qwen3.6:latest"
   },
   "errors": []
 }

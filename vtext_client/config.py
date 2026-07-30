@@ -17,7 +17,7 @@ class ClientConfig:
     default_jobs: int = 1
     # LLM refine (post-transcription correction + structuring)
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen3.5:9b"
+    ollama_model: str = "qwen3.6:latest"
     refine_enabled: bool = True
     refine_mode: str = "auto"  # auto | direct | server
     llm_timeout: int = 300

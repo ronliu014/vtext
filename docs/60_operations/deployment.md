@@ -116,6 +116,13 @@ models_dir = "~/.cache/vtext/models"
 max_file_size = 524288000   # 500MB，单位字节
 request_timeout = 300
 job_ttl = 600
+
+# Production LLM relay (Linux server owns this upstream)
+ollama_url = "http://vision.lingrengame.com:7866"
+llm_model = "qwen3.6:latest"
+llm_workers = 1
+llm_timeout = 900
+llm_max_request_size = 2097152
 ```
 
 ### 客户端（~/.config/vtext/client.toml）
@@ -144,6 +151,10 @@ default_jobs = 1          # 批量处理并发数
 | `VTEXT_FORMAT` | `default_format`（客户端） |
 | `VTEXT_LANGUAGE` | `default_language`（客户端） |
 | `VTEXT_MODEL` | `default_model`（客户端） |
+| `OLLAMA_URL` | `ollama_url`（服务端） |
+| `VTEXT_LLM_MODEL` | `llm_model`（服务端） |
+| `VTEXT_LLM_TIMEOUT` | `llm_timeout`（服务端） |
+| `VTEXT_LLM_MAX_REQUEST_SIZE` | `llm_max_request_size`（服务端） |
 
 ---
 

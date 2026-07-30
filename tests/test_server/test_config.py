@@ -22,6 +22,8 @@ class TestServerConfigDefaults:
         assert cfg.whisper_binary == "whisper-cli"
         assert cfg.threads == 4
         assert cfg.max_file_size == 500 * 1024 * 1024
+        assert cfg.llm_model == "qwen3.6:latest"
+        assert cfg.llm_max_request_size == 2 * 1024 * 1024
 
 
 class TestServerConfigToml:

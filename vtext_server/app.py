@@ -8,13 +8,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import zstandard as zstd
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from sse_starlette.sse import EventSourceResponse
 
 from vtext_common.types import JobStatus
 from .config import ServerConfig
 from .errors import ModelNotFoundError
 from .models import list_available, list_cached, resolve_model_path, download
+from .llm_client import (
+    QWEN_GENERAL_OPENAPI_VERSION,
+    chat_payload_size,
+    normalize_request_id,
+)
 from .llm_queue import LlmQueue
 from .queue import TranscriptionQueue
 
@@ -180,21 +185,57 @@ def _router():
             "position": job["position"],
         }
 
-    # ---- LLM relay: generic Ollama proxy via a serialized queue ----
+    # ---- LLM relay: serialized non-streaming qwen-general calls ----
+    def llm_metadata(job: dict) -> dict:
+        return {
+            "request_id": job["request_id"],
+            "upstream_status_code": job.get("upstream_status_code"),
+            "upstream_error_code": job.get("upstream_error_code"),
+            "upstream_error_source": job.get("upstream_error_source"),
+            "upstream_elapsed_seconds": job.get("upstream_elapsed_seconds"),
+        }
+
     @router.post("/llm/chat", status_code=201)
-    async def llm_chat(body: dict):
+    async def llm_chat(body: dict, request: Request, response: Response):
+        request_id = normalize_request_id(request.headers.get("X-Request-ID"))
         model = body.get("model")
         messages = body.get("messages")
-        if not model or not isinstance(messages, list):
+        if not isinstance(model, str) or not model or not isinstance(messages, list):
             raise HTTPException(
                 400, "body must include string 'model' and list 'messages'"
             )
         options = body.get("options")
+        if options is not None and not isinstance(options, dict):
+            raise HTTPException(400, "'options' must be an object")
+
+        request_size = chat_payload_size(model, messages, options)
+        if request_size > _config.llm_max_request_size:
+            logger.warning(
+                "llm request rejected request_id=%s size=%d max=%d",
+                request_id, request_size, _config.llm_max_request_size,
+            )
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "error": "request_too_large",
+                    "message": "LLM request exceeds upstream gateway limit",
+                    "request_id": request_id,
+                    "upstream_error_source": "vtext",
+                    "request_size": request_size,
+                    "max_request_size": _config.llm_max_request_size,
+                },
+                headers={"X-Request-ID": request_id},
+            )
+
         try:
-            job_id, position = _llm_queue.submit(model, messages, options)
+            job_id, position = _llm_queue.submit(
+                model, messages, options, request_id=request_id
+            )
         except queue.Full:
             size = _llm_queue.queue_size()
-            logger.warning("llm queue full size=%d", size)
+            logger.warning(
+                "llm queue full request_id=%s size=%d", request_id, size
+            )
             raise HTTPException(
                 status_code=429,
                 detail={
@@ -203,13 +244,23 @@ def _router():
                     "queue_size": size,
                     "position": size,
                     "estimated_wait_seconds": size * 60,
+                    "request_id": request_id,
+                    "upstream_error_source": "vtext",
                 },
+                headers={"X-Request-ID": request_id},
             )
         logger.info(
-            "llm job queued job_id=%s model=%s msgs=%d position=%d",
-            job_id, model, len(messages), position,
+            "llm job queued job_id=%s request_id=%s model=%s msgs=%d "
+            "request_bytes=%d position=%d",
+            job_id, request_id, model, len(messages), request_size, position,
         )
-        return {"job_id": job_id, "status": "queued", "position": position}
+        response.headers["X-Request-ID"] = request_id
+        return {
+            "job_id": job_id,
+            "request_id": request_id,
+            "status": "queued",
+            "position": position,
+        }
 
     @router.get("/llm/chat/{job_id}/stream")
     async def llm_chat_stream(job_id: str):
@@ -223,23 +274,39 @@ def _router():
                 if job is None:
                     break
                 status = job["status"]
+                metadata = llm_metadata(job)
                 if status == JobStatus.QUEUED:
                     yield {
                         "event": "queued",
-                        "data": json.dumps({"position": job["position"]}),
+                        "data": json.dumps({
+                            "position": job["position"],
+                            **metadata,
+                        }),
                     }
                 elif status == JobStatus.PROCESSING:
                     yield {
                         "event": "processing",
-                        "data": json.dumps({"progress": job["progress"]}),
+                        "data": json.dumps({
+                            "progress": job["progress"],
+                            **metadata,
+                        }),
                     }
                 elif status == JobStatus.DONE:
-                    yield {"event": "done", "data": json.dumps({"result": job["result"]})}
+                    yield {
+                        "event": "done",
+                        "data": json.dumps({
+                            "result": job["result"],
+                            **metadata,
+                        }),
+                    }
                     break
                 elif status == JobStatus.ERROR:
                     yield {
                         "event": "error",
-                        "data": json.dumps({"message": job["error"]}),
+                        "data": json.dumps({
+                            "message": job["error"],
+                            **metadata,
+                        }),
                     }
                     break
                 await asyncio.sleep(0.5)
@@ -256,6 +323,7 @@ def _router():
             "status": job["status"],
             "progress": job["progress"],
             "position": job["position"],
+            **llm_metadata(job),
         }
 
     @router.get("/health")
@@ -278,6 +346,12 @@ def _router():
                 "switching": False,
             },
             "llm": {
+                "upstream_url": _config.ollama_url,
+                "model": _config.llm_model,
+                "timeout_seconds": _config.llm_timeout,
+                "request_mode": "non-streaming",
+                "contract_version": QWEN_GENERAL_OPENAPI_VERSION,
+                "max_request_size": _config.llm_max_request_size,
                 "workers": {
                     "total": _config.llm_workers,
                     "busy": _llm_queue.busy_workers(),

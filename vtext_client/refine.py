@@ -15,13 +15,15 @@ vtext-server relay (``POST /llm/chat``). All failures raise :class:`RefineError`
 so callers can warn-and-skip without losing an already-produced transcript.
 """
 import re
+import uuid
 
 import requests
 
 from .api import stream_llm_result, submit_llm_job
 from .errors import RefineError
 
-_DEFAULT_OPTIONS = {"temperature": 0.4}
+_DEFAULT_OPTIONS = {"temperature": 0.4, "num_ctx": 32768, "num_predict": 1024}
+DEFAULT_REFINE_CHUNK_CHARS = 12_000
 
 CORRECT_SYSTEM_PROMPT = """你是一名专业的中文文字编辑。任务：对一段 ASR（语音自动转录）原文进行【纠错】，输出一份干净、完整、连贯的全文正文。
 
@@ -58,6 +60,46 @@ def to_simplified(text: str) -> str:
         return text
 
 
+def _split_text(text: str, max_chars: int = DEFAULT_REFINE_CHUNK_CHARS) -> list[str]:
+    """Split at paragraph/sentence boundaries without dropping source text."""
+    if max_chars <= 0:
+        raise ValueError("max_chars must be positive")
+
+    source = text.strip()
+    if not source:
+        return []
+    chunks: list[str] = []
+    start = 0
+    soft_floor = max(1, max_chars // 2)
+    separators = ("\n\n", "\n", "\u3002", "\uff01", "\uff1f", "\uff1b", ". ", "! ", "? ", "; ")
+
+    while len(source) - start > max_chars:
+        window_end = start + max_chars
+        cut = -1
+        separator_length = 0
+        search_start = start + soft_floor
+        for separator in separators:
+            candidate = source.rfind(separator, search_start, window_end)
+            if candidate >= cut:
+                cut = candidate
+                separator_length = len(separator)
+        if cut < start:
+            cut = window_end
+            separator_length = 0
+        else:
+            cut += separator_length
+
+        chunk = source[start:cut].strip()
+        if chunk:
+            chunks.append(chunk)
+        start = cut
+
+    tail = source[start:].strip()
+    if tail:
+        chunks.append(tail)
+    return chunks
+
+
 def refine_text(
     plain: str,
     *,
@@ -66,33 +108,55 @@ def refine_text(
     server_url: str,
     mode: str = "auto",
     timeout: int = 300,
+    chunk_chars: int = DEFAULT_REFINE_CHUNK_CHARS,
 ) -> tuple[str, str]:
-    """Run the two-stage refine pipeline. Returns ``(clean_text, summary_md)``.
-
-    Raises :class:`RefineError` on any failure (caller should warn-and-skip).
-    """
+    """Correct and structure bounded chunks, returning only complete results."""
     try:
-        clean = correct_text(
-            plain,
-            ollama_url=ollama_url,
-            model=model,
-            server_url=server_url,
-            mode=mode,
-            timeout=timeout,
-        )
-        summary = structure_text(
-            clean,
-            ollama_url=ollama_url,
-            model=model,
-            server_url=server_url,
-            mode=mode,
-            timeout=timeout,
-        )
-        return clean, summary
+        source_chunks = _split_text(to_simplified(plain), chunk_chars)
+        if not source_chunks:
+            raise RefineError("refine input is empty")
+
+        clean_chunks = []
+        for index, source_chunk in enumerate(source_chunks, 1):
+            try:
+                clean_chunks.append(
+                    correct_text(
+                        source_chunk,
+                        ollama_url=ollama_url,
+                        model=model,
+                        server_url=server_url,
+                        mode=mode,
+                        timeout=timeout,
+                    )
+                )
+            except Exception as exc:
+                raise RefineError(
+                    f"correction chunk {index}/{len(source_chunks)} failed: {exc}"
+                ) from exc
+
+        summary_chunks = []
+        for index, clean_chunk in enumerate(clean_chunks, 1):
+            try:
+                summary_chunks.append(
+                    structure_text(
+                        clean_chunk,
+                        ollama_url=ollama_url,
+                        model=model,
+                        server_url=server_url,
+                        mode=mode,
+                        timeout=timeout,
+                    )
+                )
+            except Exception as exc:
+                raise RefineError(
+                    f"structure chunk {index}/{len(clean_chunks)} failed: {exc}"
+                ) from exc
+
+        return "\n\n".join(clean_chunks), "\n\n".join(summary_chunks)
     except RefineError:
         raise
-    except Exception as e:  # noqa: BLE001 - non-fatal step: wrap anything
-        raise RefineError(f"refine failed: {e}") from e
+    except Exception as exc:
+        raise RefineError(f"refine failed: {exc}") from exc
 
 
 def correct_text(
@@ -159,7 +223,10 @@ def _llm_transform(
         mode=mode,
         timeout=timeout,
     )
-    return to_simplified(_strip_think(raw))
+    result = to_simplified(_strip_think(raw))
+    if not result:
+        raise RefineError("LLM returned an empty refine result")
+    return result
 
 
 def _dispatch(
@@ -205,15 +272,25 @@ def _ollama_chat_direct(
             "stream": False,
         },
         timeout=timeout,
+        headers={"X-Request-ID": uuid.uuid4().hex},
     )
     if resp.status_code != 200:
         raise RefineError(
             f"ollama direct returned {resp.status_code}: {resp.text[:200]}"
         )
     try:
-        return resp.json()["message"]["content"]
-    except (ValueError, KeyError, TypeError) as e:
+        body = resp.json()
+    except ValueError as e:
         raise RefineError(f"ollama direct unexpected response: {e}") from e
+    if not isinstance(body, dict) or body.get("done") is not True:
+        raise RefineError("ollama direct did not report done=true")
+    try:
+        content = body["message"]["content"]
+    except (KeyError, TypeError) as e:
+        raise RefineError(f"ollama direct unexpected response: {e}") from e
+    if not isinstance(content, str) or not content.strip():
+        raise RefineError("ollama direct returned empty assistant content")
+    return content
 
 
 def _refine_via_server(
@@ -223,7 +300,7 @@ def _refine_via_server(
     job_id = submit_llm_job(
         server_url, model, messages, options=_DEFAULT_OPTIONS, timeout=30
     )
-    return stream_llm_result(server_url, job_id)
+    return stream_llm_result(server_url, job_id, timeout=timeout)
 
 
 def _strip_think(text: str) -> str:

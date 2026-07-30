@@ -29,7 +29,7 @@ def llm_server(tmp_path):
             yield client
 
 
-def submit(client, model="qwen3.5:9b", messages=None, options=None):
+def submit(client, model="qwen3.6:latest", messages=None, options=None):
     return client.post(
         "/llm/chat",
         json={

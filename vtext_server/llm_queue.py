@@ -5,7 +5,7 @@ chat forwarding. It has its own ``Manager()``, ``Queue``, shared job dict, and
 worker process pool, so it never contends with the transcription queue.
 
 ``llm_workers`` defaults to 1 (strict FIFO): Ollama serves one model at a time
-well, and serializing forwards keeps them orderly ("不混乱") and predictable.
+well, and serialized forwarding keeps request ordering predictable.
 """
 import multiprocessing
 import queue
@@ -41,19 +41,17 @@ class LlmQueue:
 
     def stop(self) -> None:
         for _ in self._workers:
-            self._task_queue.put(None)  # one shutdown sentinel per worker
+            self._task_queue.put(None)
         for p in self._workers:
             p.join(timeout=5)
 
-    def submit(self, model, messages, options) -> tuple[str, int]:
-        """Enqueue an LLM job. Returns (job_id, queue_position).
-
-        Raises :class:`queue.Full` if the queue is at capacity.
-        """
+    def submit(self, model, messages, options, request_id=None) -> tuple[str, int]:
+        """Enqueue an LLM job. Returns (job_id, queue_position)."""
         job_id = uuid.uuid4().hex[:8]
         position = self._task_queue.qsize() + 1
         job_data = {
             "job_id": job_id,
+            "request_id": request_id or uuid.uuid4().hex,
             "model": model,
             "messages": messages,
             "options": options,
@@ -62,6 +60,10 @@ class LlmQueue:
             "position": position,
             "result": None,
             "error": None,
+            "upstream_status_code": None,
+            "upstream_error_code": None,
+            "upstream_error_source": None,
+            "upstream_elapsed_seconds": None,
         }
         self._jobs[job_id] = job_data
         try:

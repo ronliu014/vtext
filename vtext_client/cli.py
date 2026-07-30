@@ -213,7 +213,7 @@ def _transcribe_vbook_bundle(
     simplify: bool = False,
     refine: bool = False,
     ollama_url: str = "http://localhost:11434",
-    refine_model: str = "qwen3.5:9b",
+    refine_model: str = "qwen3.6:latest",
     refine_mode: str = "auto",
     llm_timeout: int = 300,
 ) -> None:
@@ -353,7 +353,7 @@ def _transcribe_file(
     simplify: bool = False,
     refine: bool = False,
     ollama_url: str = "http://localhost:11434",
-    refine_model: str = "qwen3.5:9b",
+    refine_model: str = "qwen3.6:latest",
     refine_mode: str = "auto",
     llm_timeout: int = 300,
 ) -> None:

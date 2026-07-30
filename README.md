@@ -31,11 +31,11 @@ Linux vtext server / LLM relay
           |
           | Ollama HTTP API
           v
-192.168.0.33:7866
+vision.lingrengame.com:7866
 GPU Ollama
 ```
 
-其中，vBook 只调用 Windows 本地的 vtext CLI，CLI 只把生产请求提交给 `192.168.0.122:8000`。只有 Linux vtext server / LLM relay 负责访问 `192.168.0.33:7866`；生产链路中不存在 vBook 或 Windows vtext CLI 直连 GPU Ollama 的连接。
+其中，vBook 只调用 Windows 本地的 vtext CLI，CLI 只把生产请求提交给 `192.168.0.122:8000`。只有 Linux vtext server / LLM relay 负责访问 `vision.lingrengame.com:7866`；生产链路中不存在 vBook 或 Windows vtext CLI 直连 GPU Ollama 的连接。
 
 边界规则：
 
@@ -112,6 +112,11 @@ workers = 4
 whisper_binary = "/path/to/whisper.cpp/build/bin/whisper-cli"
 model = "small"
 models_dir = "~/.cache/vtext/models"
+ollama_url = "http://vision.lingrengame.com:7866"
+llm_model = "qwen3.6:latest"
+llm_workers = 1
+llm_timeout = 900
+llm_max_request_size = 2097152
 ```
 
 ### systemd 用户级服务（推荐，开机自启）

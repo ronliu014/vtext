@@ -7,6 +7,7 @@ from unittest.mock import patch
 from vtext_client.refine import (
     CORRECT_SYSTEM_PROMPT,
     STRUCTURE_SYSTEM_PROMPT,
+    _DEFAULT_OPTIONS,
     _dispatch,
     _strip_think,
     refine_text,
@@ -14,7 +15,7 @@ from vtext_client.refine import (
 )
 from vtext_client.errors import RefineError
 
-OPTS = dict(ollama_url="http://ollama:11434", model="qwen3.5:9b",
+OPTS = dict(ollama_url="http://ollama:11434", model="qwen3.6:latest",
             server_url="http://srv:8000", timeout=60)
 MSGS = [{"role": "user", "content": "hi"}]
 
@@ -44,6 +45,14 @@ class TestToSimplified:
     def test_legitimate_zhu_preserved(self):
         # 著 as "famous/work/significant" must stay
         assert to_simplified("著名 著作 顯著") == "著名 著作 显著"
+
+
+def test_default_refine_options_use_conservative_qwen_profile():
+    assert _DEFAULT_OPTIONS == {
+        "temperature": 0.4,
+        "num_ctx": 32768,
+        "num_predict": 1024,
+    }
 
 
 class TestDispatch:

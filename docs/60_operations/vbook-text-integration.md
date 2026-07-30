@@ -46,7 +46,11 @@ Workers: <busy>/<total> busy
 Use one command per lesson for the first vBook integration pass.
 
 For `--bundle vbook`, vtext always sends refine requests through the server LLM
-relay. The default `auto` mode resolves to `server`; explicit
+relay. Long transcripts are split at paragraph or sentence boundaries into bounded
+12,000-character chunks; every correction chunk must succeed before any complete
+refine result is returned. vision confirmed the 12,000-character value is acceptable when the encoded
+JSON request body stays at or below 2 MiB; it remains a vtext-owned policy,
+not an upstream API limit. The default `auto` mode resolves to `server`; explicit
 `--refine-mode direct` is rejected so the Windows CLI cannot bypass the
 production server boundary. `--no-refine` is also rejected because it would
 make the required bundle incomplete.
@@ -109,6 +113,9 @@ bundle while seeing the degraded refine quality in the manifest.
 - Queue full: retry later or use a less busy server.
 - Large files: client compresses WAV files at or above 100 MB, but server upload
   size and memory limits still apply.
+- Refine HTTP 413, 503, timeout, empty output, or truncated SSE: vtext records a
+  refine error and emits only the explicit raw-derived fallback, never a partial LLM
+  artifact. Preserve the request ID from the error for correlation.
 - Refine unavailable: have `lcodex` inspect the vtext server LLM relay and its
   upstream connection to GPU Ollama. Do not route the Windows CLI directly to
   Ollama as a production workaround.

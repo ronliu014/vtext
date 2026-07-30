@@ -11,6 +11,9 @@ vtext-server 提供 RESTful API，异步任务通过 SSE 推送进度。
 | `POST` | `/transcribe` | 提交转写任务 |
 | `GET` | `/jobs/{id}/stream` | SSE 流，实时推送任务进度和结果 |
 | `GET` | `/jobs/{id}` | 查询任务状态（SSE 断线后恢复用） |
+| `POST` | `/llm/chat` | Queue one LLM relay job |
+| `GET` | `/llm/chat/{id}/stream` | LLM result SSE |
+| `GET` | `/llm/chat/{id}` | LLM job status |
 | `GET` | `/health` | server 健康状态 |
 | `GET` | `/models` | 列出可用模型 |
 | `POST` | `/models/download` | 下载模型 |
@@ -113,6 +116,42 @@ data: {"error": "TranscriptionError", "message": "whisper.cpp failed: ..."}
 任务完成后结果保留 10 分钟，之后自动清理。
 
 ---
+
+## LLM Relay
+
+The production LLM boundary is asynchronous and non-streaming upstream:
+
+- POST /llm/chat queues one bounded Ollama-compatible chat request.
+- GET /llm/chat/{id}/stream emits queued, processing, done, or error SSE.
+- GET /llm/chat/{id} returns status plus request correlation metadata.
+- GET /health exposes the qwen-general OpenAPI contract version used by the relay.
+- Every submission must explicitly include model and messages.
+- X-Request-ID is accepted, generated when absent, sent to qwen-general, and
+  returned in submission, status, SSE, and logs.
+- Requests whose serialized upstream body exceeds 2 MiB return HTTP 413 with
+  error=request_too_large before entering the queue.
+- Upstream HTTP status, error code, error source, and elapsed seconds are included on terminal
+  events. A done event always contains a non-empty complete result accepted only after qwen-general reports done=true.
+- vtext requests stream=false and think=false. The deployed caller timeout is
+  900 seconds, while the gateway independently enforces a 300-second read/write
+  inactivity timeout.
+
+Example submission:
+
+```json
+{
+  "model": "qwen3.6:latest",
+  "messages": [{"role": "user", "content": "Bounded input"}],
+  "options": {"temperature": 0.4, "num_ctx": 32768, "num_predict": 1024}
+}
+```
+
+Example terminal error event:
+
+```text
+event: error
+data: {"message":"service unavailable","request_id":"...","upstream_status_code":503,"upstream_error_code":"runtime_unavailable","upstream_error_source":"gateway","upstream_elapsed_seconds":12.5}
+```
 
 ## GET /health
 

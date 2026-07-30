@@ -21,6 +21,7 @@ class TestClientConfigDefaults:
         assert cfg.default_language is None
         assert cfg.default_model is None
         assert cfg.default_jobs == 1
+        assert cfg.ollama_model == "qwen3.6:latest"
 
 
 class TestClientConfigToml:

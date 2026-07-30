@@ -14,6 +14,8 @@ from .config import load_server_config
 @click.option("--workers", default=None, type=int, help="Worker processes (overrides config)")
 @click.option("--ollama-url", default=None,
               help="Ollama URL for the LLM relay (overrides config)")
+@click.option("--llm-model", default=None,
+              help="Default LLM relay model (overrides config)")
 @click.option("--llm-workers", default=None, type=int,
               help="LLM relay worker processes (overrides config; default 1 = serialized FIFO)")
 @click.option("--config", "config_file", default=None, type=click.Path(),
@@ -23,7 +25,7 @@ from .config import load_server_config
 @click.option("--log-level", default=None,
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
               help="Log level (overrides config)")
-def main(host, port, model, binary, workers, ollama_url, llm_workers,
+def main(host, port, model, binary, workers, ollama_url, llm_model, llm_workers,
          config_file, log_dir, log_level):
     """Start vtext transcription server."""
     from pathlib import Path
@@ -44,6 +46,8 @@ def main(host, port, model, binary, workers, ollama_url, llm_workers,
         cfg.workers = workers
     if ollama_url is not None:
         cfg.ollama_url = ollama_url
+    if llm_model is not None:
+        cfg.llm_model = llm_model
     if llm_workers is not None:
         cfg.llm_workers = llm_workers
     if log_dir is not None:
@@ -57,8 +61,9 @@ def main(host, port, model, binary, workers, ollama_url, llm_workers,
     logger = logging.getLogger("vtext.server")
     logger.info(
         "starting vtext-server host=%s port=%d workers=%d model=%s "
-        "llm_workers=%d ollama_url=%s log_dir=%s",
-        cfg.host, cfg.port, cfg.workers, cfg.model, cfg.llm_workers, cfg.ollama_url,
+        "llm_workers=%d llm_model=%s ollama_url=%s llm_timeout=%ss log_dir=%s",
+        cfg.host, cfg.port, cfg.workers, cfg.model, cfg.llm_workers,
+        cfg.llm_model, cfg.ollama_url, cfg.llm_timeout,
         str(cfg.log_dir) if cfg.log_dir else "console-only",
     )
 

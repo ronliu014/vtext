@@ -31,11 +31,11 @@ Linux vtext server / LLM relay
           |
           | Ollama HTTP API
           v
-192.168.0.33:7866
+vision.lingrengame.com:7866
 GPU Ollama
 ```
 
-vBook invokes only the local Windows vtext CLI, and the CLI submits production requests only to `192.168.0.122:8000`. Only the Linux vtext server / LLM relay connects to `192.168.0.33:7866`. There is no production edge from vBook or the Windows vtext CLI directly to GPU Ollama.
+vBook invokes only the local Windows vtext CLI, and the CLI submits production requests only to `192.168.0.122:8000`. Only the Linux vtext server / LLM relay connects to `vision.lingrengame.com:7866`. There is no production edge from vBook or the Windows vtext CLI directly to GPU Ollama.
 
 Mandatory boundaries:
 
@@ -43,7 +43,12 @@ Mandatory boundaries:
 - `sync/` is the **intra-project** Git mailbox for `wcodex` and `lcodex`. Follow `sync/PROTOCOL.md`; do not use it as the cross-project mailbox or as a replacement for the HTTP/SSE transcription data plane.
 - `vsync` is the **cross-project** Git mailbox for communication among vtext, vBook, vision, and other registered projects.
 - Never conflate `sync` and `vsync`: use `sync/` for Windows ↔ Linux coordination inside vtext, and use `vsync` for project ↔ project coordination.
-- Production GPU/Ollama connectivity is owned by the vtext server. Do not diagnose a Windows `localhost:11434` refusal as evidence that Windows should host Ollama, and do not reconfigure vBook or the Windows CLI to bypass `192.168.0.122` for production model calls.
+- Production GPU/Ollama connectivity is owned by the vtext server. Use the
+  company-managed `vision.lingrengame.com` hostname for current vision-owned
+  services; retain each service's required port. Do not diagnose a Windows
+  `localhost:11434` refusal as evidence that Windows should host Ollama, and do
+  not reconfigure vBook or the Windows CLI to bypass `192.168.0.122` for
+  production model calls.
 - Local Windows code changes are not deployed until `lcodex` applies or pulls them on the Linux server and reports deployment evidence.
 
 ## Environment
