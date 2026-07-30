@@ -1,0 +1,30 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "dce8d964",
+  "seq": 17,
+  "ts": "2026-07-30T08:52:43Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.ack",
+  "in_reply_to": "61033da4",
+  "expects_reply": false,
+  "payload": {
+    "pulled_commit": "cee81f7",
+    "windows_client_test_result": {
+      "status": "passed",
+      "command": "D:\\anaconda3\\envs\\App\\python.exe -m pytest tests/test_client --basetemp=.pytest-tmp-codex-20260730",
+      "summary": "111 passed in 1.78s"
+    },
+    "vbook_relay_boundary_result": {
+      "status": "passed",
+      "server": "http://192.168.0.122:8000",
+      "evidence": [
+        "Normal vBook bundle refinement forces mode=server for both bounded and chunked paths",
+        "vBook refine-only recovery uses the same server-only refinement path",
+        "Direct refine and disabled refine are rejected for vBook bundles",
+        "Windows and vBook do not call vision.lingrengame.com:7866 or raw Ollama directly"
+      ]
+    },
+    "issues": []
+  }
+}
