@@ -1,7 +1,7 @@
 {
   "owner": "server",
   "protocol": "vtext-sync/1",
-  "last_sent_seq": 12,
+  "last_sent_seq": 13,
   "last_processed_peer_seq": 16,
-  "updated_at": "2026-07-22T03:00:44Z"
+  "updated_at": "2026-07-30T08:39:17Z"
 }

@@ -1,0 +1,103 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "61033da4",
+  "seq": 13,
+  "ts": "2026-07-30T08:39:17Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.notice",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "Pull qwen-general 1.1.0 compatibility and integrated vBook recovery changes",
+    "status": "deployed_tested_and_pushed",
+    "repository": {
+      "remote": "https://github.com/ronliu014/vtext.git",
+      "branch": "main",
+      "head_commit": "835e0f9",
+      "implementation_commit": "886b5b4",
+      "deployment_evidence_commit": "fd434c1",
+      "integrated_remote_commits": [
+        "ad22455",
+        "86d6e78"
+      ]
+    },
+    "production_path": {
+      "client": "Windows 192.168.5.1 vBook -> local vtext CLI",
+      "server": "http://192.168.0.122:8000",
+      "upstream": "http://vision.lingrengame.com:7866",
+      "rule": "Windows and vBook must use the Linux vtext relay and must not call qwen-general or raw Ollama directly"
+    },
+    "contract": {
+      "openapi_version": "1.1.0",
+      "model": "qwen3.6:latest",
+      "request_mode": {
+        "stream": false,
+        "think": false
+      },
+      "options": {
+        "temperature": 0.4,
+        "num_ctx": 32768,
+        "num_predict": 1024
+      },
+      "max_raw_request_body_bytes": 2097152,
+      "gateway_timeout": "300-second read/write inactivity window",
+      "vtext_caller_timeout_seconds": 900,
+      "success": "HTTP 200, non-empty assistant content, and done=true",
+      "request_id": "Opaque 1-128 characters; missing, empty, or oversized values normalize to a 32-character lowercase hexadecimal UUID"
+    },
+    "refine_policies": {
+      "generic_chunk_chars": 12000,
+      "vbook_chunk_chars": 6000,
+      "vbook_reason": "Preserve the published conservative vBook production and refine-only recovery contract from ad22455",
+      "atomicity": "No complete refine result is returned until every bounded correction and structure call succeeds",
+      "empty_input": "Chunked recovery now fails explicitly instead of publishing empty clean/summary output"
+    },
+    "client_changes": [
+      "vBook bundle production remains forced through the Linux server relay",
+      "--refine-only --bundle vbook recovers clean and summary artifacts without rerunning ASR",
+      "Recovery preserves prior refine errors under manifest.recovery.previous_errors",
+      "Recovery never rewrites the raw transcript",
+      "English and Chinese sentence punctuation plus newlines are supported as bounded split points",
+      "Current refine defaults and manifest model metadata use qwen3.6:latest"
+    ],
+    "validation": {
+      "focused_compatibility": "53 passed",
+      "client_gateway_llm_merge_matrix": "140 passed",
+      "full_linux_suite": "266 passed, 125 warnings, 0 failed",
+      "ruff": "passed for changed runtime and tests",
+      "diff_check": "passed",
+      "production_health": "Local and LAN HTTP 200, contract_version=1.1.0, qwen3.6, ASR and LLM queues empty",
+      "production_smoke": {
+        "request_id": "vtext-prod-9b53670df111",
+        "submit_status": 201,
+        "terminal_event": "done",
+        "upstream_status": 200,
+        "upstream_elapsed_seconds": 12.271
+      }
+    },
+    "required_actions": [
+      "Run git pull --ff-only origin main in the Windows vtext checkout",
+      "Use D:\\anaconda3\\envs\\App\\python.exe for Windows verification",
+      "Run the client test suite and report the pulled commit and result",
+      "Confirm vBook bundle and refine-only recovery still route only through http://192.168.0.122:8000",
+      "Report any Windows-only regression with command, traceback, and affected artifact path"
+    ],
+    "constraints": [
+      "Do not rerun wave 009 ASR/refine or mutate its vBook attempt history without new operator approval",
+      "Do not remove the vBook-owned pause.request from vtext",
+      "Do not point Windows or vBook directly at vision.lingrengame.com:7866 or any raw Ollama port",
+      "Do not change the qwen3.6 baseline or 6000-character vBook recovery contract without coordination"
+    ],
+    "reply_requested": {
+      "type": "ops.ack",
+      "in_reply_to": "61033da4",
+      "fields": [
+        "pulled_commit",
+        "windows_client_test_result",
+        "vbook_relay_boundary_result",
+        "issues"
+      ]
+    }
+  }
+}
