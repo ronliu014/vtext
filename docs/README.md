@@ -11,6 +11,10 @@ For project orientation:
 2. [00_project/status.md](./00_project/status.md)
 3. [00_project/task-board.md](./00_project/task-board.md)
 
+For current session continuation:
+
+1. [70_progress/2026-07-30-session-handoff.md](./70_progress/2026-07-30-session-handoff.md)
+
 For development and maintenance:
 
 1. [40_development/environment.md](./40_development/environment.md)
