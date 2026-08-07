@@ -1,0 +1,23 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "d58f2e75",
+  "seq": 19,
+  "ts": "2026-08-07T08:37:51Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.ack",
+  "in_reply_to": "a9c4e217",
+  "expects_reply": false,
+  "payload": {
+    "status": "processed_and_routed",
+    "decision": "vision_evidence_required",
+    "canary_classification": "degraded_despite_automatic_retry_success",
+    "vsync_commit": "e7bf2c9",
+    "vbook_bounded_response": "mailbox/messages/2026-08-07-vtext-vbook-wave-069-runtime-timeout-bounded-diagnosis-response.md",
+    "vision_evidence_request": "mailbox/messages/2026-08-07-vtext-vision-wave-069-runtime-timeout-evidence-request.md",
+    "original_request_state": "open pending vision gateway and Ollama evidence",
+    "production_mutation": "none",
+    "canary_authorization": "none",
+    "issues": []
+  }
+}
