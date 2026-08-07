@@ -1,0 +1,84 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "b7df8deb",
+  "seq": 18,
+  "ts": "2026-08-07T07:59:08Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.investigate.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "Investigate vBook Wave 069 qwen-general 300-second runtime timeout",
+    "priority": "production-blocking",
+    "vsync_request": "mailbox/messages/2026-08-07-vbook-vtext-wave-069-refine-timeout-compatibility-request.md",
+    "topology": {
+      "client": "Windows 192.168.5.1 vBook -> local vtext CLI",
+      "server": "http://192.168.0.122:8000",
+      "upstream": "http://vision.lingrengame.com:7866",
+      "ownership": "lcodex owns the Linux vtext service; vision owns qwen-general gateway and Ollama runtime"
+    },
+    "incident": {
+      "run_id": "R20260720-vtext-wave-069",
+      "task_id": "002-df5414555363",
+      "lesson": "基础教学/小白K线基础课/58、双重底",
+      "attempt_1_utc": {
+        "started_at": "2026-08-07T06:30:56.621762Z",
+        "finished_at": "2026-08-07T06:43:17.562402Z",
+        "elapsed_seconds": 740.916,
+        "exit_code": 0,
+        "runner_classification": "output_validation"
+      },
+      "refine_failure": {
+        "request_id": "852b6d8f9c7442d4b7edc11b20608af8",
+        "error": "runtime_timeout",
+        "source": "gateway",
+        "upstream_http": 504,
+        "reported_latency_seconds": 300.361,
+        "message": "upstream chat returned HTTP 504: Ollama runtime timed out"
+      },
+      "attempt_2_utc": {
+        "started_at": "2026-08-07T06:43:17.563696Z",
+        "finished_at": "2026-08-07T07:00:42.823439Z",
+        "elapsed_seconds": 1045.232,
+        "exit_code": 0,
+        "result": "succeeded"
+      },
+      "final_wave_result": "completed; all five tasks succeeded and all final manifests have status=done with errors=[]",
+      "concurrency": "vBook ran two concurrent stage worker processes; task 002 entered refine while the shared service was serving the Wave 069 canary",
+      "windows_evidence": [
+        "E:/projects/my_app/vbook/outputs/production-runs/R20260720-vtext-wave-069/summary.json",
+        "E:/projects/my_app/vbook/outputs/production-runs/R20260720-vtext-wave-069/events.jsonl",
+        "E:/projects/my_app/vbook/outputs/production-runs/R20260720-vtext-wave-069/tasks/002-df5414555363/result.json",
+        "E:/projects/my_app/vbook/outputs/production-runs/R20260720-vtext-wave-069/tasks/002-df5414555363/attempt-01.stderr.log",
+        "E:/projects/my_app/vbook/outputs/production-artifacts/vtext-wave-069/002-df5414555363/manifest.json"
+      ]
+    },
+    "checks": [
+      "Preserve and correlate Linux vtext logs for request_id 852b6d8f9c7442d4b7edc11b20608af8 before any restart or configuration change",
+      "Report the vtext job id, queue wait, worker start/end times, upstream HTTP response metadata, and relevant sanitized log paths",
+      "Confirm the deployed git revision, process identity/systemd unit, startup time, ollama_url, llm_timeout, llm_workers, queue capacity, model, request mode, and 2 MiB request guard at the event time",
+      "Explain precisely why the gateway returned HTTP 504 at 300.361 seconds while the vtext caller timeout was previously reported as 900 seconds",
+      "Assess whether two concurrent CLI jobs are supported with the active single or multiple LLM workers, including queueing behavior and expected long-tail latency",
+      "Check current service health and queue state without launching another production wave",
+      "If gateway or Ollama logs are not accessible to lcodex, identify the exact evidence gap and the request_id/time window that wcodex must route to vision through vsync",
+      "Recommend only shared-service remediation: bounded chunking, timeout alignment, queue/backpressure contract, retry/error semantics, or no change",
+      "Specify an evidence-backed bounded acceptance test for a future two-job canary and state whether automatic retry success still means the canary was degraded"
+    ],
+    "response_required": [
+      "Root cause or bounded diagnosis with supporting UTC timestamps, job ids, request id, and sanitized log paths",
+      "Effective event-time and current service revision/configuration",
+      "Multi-layer timeout explanation covering vtext caller, qwen-general gateway, and Ollama runtime",
+      "Shared-service concurrency compatibility decision",
+      "Exact acceptance test and pass/fail criteria for vBook's next bounded canary",
+      "Explicit decision: clean_to_retry_canary, service_fix_required, or vision_evidence_required"
+    ],
+    "constraints": [
+      "Do not restart or change production until the incident logs and active configuration evidence are preserved",
+      "Do not make a vBook-only production mutation or recommend direct Windows/GPU access",
+      "Do not rerun Wave 069 or unpause the vBook scheduler",
+      "Do not include secrets or large logs in Git; summarize and cite server-side paths",
+      "Reply through sync/s2c so wcodex can produce the durable vsync response"
+    ]
+  }
+}
