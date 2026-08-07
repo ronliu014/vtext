@@ -1,0 +1,47 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "5895aee0",
+  "seq": 20,
+  "ts": "2026-08-07T09:08:54Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.investigate.notice",
+  "in_reply_to": "a9c4e217",
+  "expects_reply": false,
+  "payload": {
+    "subject": "Wave 069 vision runtime evidence and final shared-service decision",
+    "decision": "service_fix_required",
+    "canary_authorized_now": false,
+    "production_resume_authorized": false,
+    "vision_response": "mailbox/messages/2026-08-07-vision-vtext-wave-069-runtime-timeout-evidence-response.md",
+    "root_cause": "qwen3.6 cold load of 49.63 seconds plus long non-streaming generation crossed qwen-general's 300-second pre-header read-inactivity limit",
+    "timeout_owner": "qwen-general",
+    "timeout_operation": "httpx ReadTimeout waiting for Ollama response headers",
+    "runtime_evidence": {
+      "gateway_duration_seconds": 300.009,
+      "gateway_result": "HTTP 504 runtime_timeout",
+      "ollama_result": "HTTP 500 at client cancellation after exactly 5 minutes",
+      "work_continued_after_504": false,
+      "event_time_model_switch": false,
+      "oom_or_memory_pressure": false,
+      "ollama_parallelism": 1
+    },
+    "bounded_service_fix": {
+      "proposed_pre_header_read_timeout_seconds": 600,
+      "retain_connect_and_pool_timeout_seconds": 5,
+      "required_observability": "phase timing, admission/queue timing, model, request size, timeout operation, and deployed build/config identity",
+      "deployment_status": "not approved or deployed"
+    },
+    "future_canary_gate": {
+      "service_fix_approved_deployed_verified": true,
+      "cross_host_clock_skew_max_seconds": 1,
+      "cold_and_warm_probe_max_seconds": 450,
+      "minimum_timeout_headroom_seconds": 150,
+      "first_attempt_only": true,
+      "llm_workers": 1,
+      "automatic_retry_classification": "degraded"
+    },
+    "linux_action": "No production change requested. Keep llm_workers=1 and retain preserved incident evidence.",
+    "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+  }
+}
