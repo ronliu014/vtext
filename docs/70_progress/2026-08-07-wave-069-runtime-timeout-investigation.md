@@ -1,7 +1,7 @@
 # Wave 069 qwen-general Runtime Timeout Investigation
 
 Date: 2026-08-07
-Status: cross-service diagnosis complete; shared-service fix required
+Status: source fix prepared; deployment and verification gated
 Decision: `service_fix_required`
 
 ## Incident Result
@@ -128,9 +128,21 @@ five-second connect and pool limits, add phase-level timing and admission
 fields without prompt/response content, expose model-aware single-runtime
 admission or bounded queue feedback, and expose deployed build/config identity.
 
-No fix has been approved or deployed. vision may prepare it, but deployment,
-restart, model calls, and any production resume require a separate approved
-change window.
+vision prepared qwen-general 1.2.0 source candidate `81bae31`. The candidate
+implements independent 5-second connect/pool, 300-second write, and 600-second
+response-read inactivity budgets; content-free phase telemetry; model-aware
+single-runtime FIFO admission with a bounded 16-request queue, retryable 429
+feedback, response queue headers, and `GET /queue`; and build revision plus
+effective-config SHA-256 in health, queue, business headers, and OpenAPI.
+
+Offline evidence passed 14 qwen-general unit/contract tests and the complete
+212-test vision unit suite using TestClient and MockTransport. No production
+port, GPU, Ollama, or model was contacted.
+
+The candidate is pushed but not deployed. Production remains qwen-general
+1.1.0 with the 300-second read-inactivity boundary. Deployment, gateway
+restart, deployed-state inspection, clock correction, model calls, probes,
+canary, and production resume each require their own applicable authorization.
 
 ## Evidence Preservation
 
