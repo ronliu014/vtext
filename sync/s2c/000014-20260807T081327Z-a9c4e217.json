@@ -1,0 +1,143 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "a9c4e217",
+  "seq": 14,
+  "ts": "2026-08-07T08:13:27Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.investigate.response",
+  "in_reply_to": "b7df8deb",
+  "expects_reply": true,
+  "payload": {
+    "subject": "Wave 069 qwen-general runtime timeout bounded diagnosis",
+    "decision": "vision_evidence_required",
+    "canary_classification": "degraded_despite_automatic_retry_success",
+    "production_mutation": "none",
+    "incident": {
+      "run_id": "R20260720-vtext-wave-069",
+      "vtext_job_id": "5cfa2783",
+      "request_id": "852b6d8f9c7442d4b7edc11b20608af8",
+      "request_bytes": 16124,
+      "queued_at_utc": "2026-08-07T06:38:46.273060Z",
+      "worker_started_at_utc": "2026-08-07T06:38:46.274441Z",
+      "worker_finished_at_utc": "2026-08-07T06:43:46.644776Z",
+      "queue_wait_seconds": 0.001,
+      "upstream_elapsed_seconds": 300.4,
+      "upstream_http": 504,
+      "error_code": "runtime_timeout",
+      "error_source": "gateway",
+      "bounded_diagnosis": "qwen-general returned an explicit gateway timeout at its gateway-to-Ollama 300-second inactivity boundary; vtext did not exhaust its own 900-second HTTP wait budget"
+    },
+    "concurrent_job": {
+      "vtext_job_id": "3cb8429c",
+      "request_id": "86ba2b019700486d88e2cc29316e97b0",
+      "queued_at_utc": "2026-08-07T06:39:39.191847Z",
+      "worker_started_at_utc": "2026-08-07T06:43:46.649461Z",
+      "worker_finished_at_utc": "2026-08-07T06:48:23.995672Z",
+      "queue_wait_seconds": 247.458,
+      "upstream_elapsed_seconds": 277.3,
+      "upstream_http": 200,
+      "interpretation": "single-worker FIFO accepted both jobs, but queue wait plus upstream execution produced approximately 524.8 seconds total latency"
+    },
+    "retry_evidence": {
+      "correction_job_id": "891654b6",
+      "correction_request_id": "f576d77f6f4647b98a4165a3334797ad",
+      "request_bytes": 16124,
+      "queue_wait_seconds": 147.275,
+      "upstream_elapsed_seconds": 272.3,
+      "upstream_http": 200,
+      "structure_job_id": "dba6eede",
+      "structure_request_id": "7cf390c96a744af8b21000e4f710bae3",
+      "structure_upstream_elapsed_seconds": 247.3,
+      "structure_upstream_http": 200,
+      "interpretation": "same-sized retry success bounds the incident to upstream runtime latency near the 300-second limit; it does not make the canary clean"
+    },
+    "deployment": {
+      "effective_revision": "886b5b4",
+      "version": "0.1.5",
+      "unit_scope": "user",
+      "unit": "vtext.service",
+      "unit_file": "/home/ubuntu/.config/systemd/user/vtext.service",
+      "main_pid": 314620,
+      "llm_worker_pid": 314655,
+      "started_at_utc": "2026-07-30T07:35:47Z",
+      "ollama_url": "http://vision.lingrengame.com:7866",
+      "llm_timeout_seconds": 900,
+      "llm_workers": 1,
+      "llm_queue_capacity": 16,
+      "model": "qwen3.6:latest",
+      "stream": false,
+      "think": false,
+      "max_request_body_bytes": 2097152,
+      "server_code_drift_since_revision": false
+    },
+    "timeout_layers": {
+      "vtext": "900-second requests HTTP wait budget",
+      "gateway": "300-second gateway-to-Ollama per-operation read/write inactivity window",
+      "ollama": "runtime execution details are vision-owned and unavailable on the vtext host",
+      "explanation": "the gateway returned HTTP 504 before the vtext wait budget expired; increasing the vtext timeout cannot extend the gateway limit"
+    },
+    "concurrency_decision": {
+      "functional_support": "two concurrent CLI submissions are admitted and strictly serialized with llm_workers=1",
+      "production_compatibility": "not clean for this workload because execution times of 247.3 to 300.4 seconds leave insufficient gateway headroom and queue latency is cumulative",
+      "worker_change": "keep llm_workers=1 until vision supplies capacity evidence; additional workers may increase shared GPU contention or model churn",
+      "queue_behavior": "queue capacity is 16; no 429 or queue loss occurred in this incident"
+    },
+    "current_health": {
+      "vtext": "HTTP 200; ASR and LLM queues empty; busy workers zero",
+      "qwen_general": "healthy",
+      "ollama_runtime_version": "0.20.7",
+      "loaded_model_observation": "qwen3.5:9b was loaded at the post-incident read-only check; this is not event-time proof"
+    },
+    "evidence": {
+      "original_log_paths": [
+        "/home/ubuntu/.local/share/vtext/logs/vtext-server.log",
+        "/home/ubuntu/.local/share/vtext/logs/vtext-server.log.2026-07-30.log",
+        "journalctl --user -u vtext.service"
+      ],
+      "snapshot_paths": [
+        "/tmp/vtext-wave069-evidence/vtext-server.log.snapshot-20260807",
+        "/tmp/vtext-wave069-evidence/vtext-worker.log.snapshot-20260807"
+      ],
+      "snapshot_sha256": [
+        "63ac861a67aa160b0a1463426d5f0d81d0c18986b41d7d29955e6268bd2befca",
+        "9730b43902e7338cec8649da1c746c1e2670140f8800bd144b82453312355860"
+      ],
+      "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+    },
+    "vision_request": {
+      "primary_request_id": "852b6d8f9c7442d4b7edc11b20608af8",
+      "exact_window_utc": "2026-08-07T06:38:46.274Z/2026-08-07T06:43:46.645Z",
+      "surrounding_window_utc": "2026-08-07T06:35:00Z/2026-08-07T06:50:00Z",
+      "comparison_request_ids": [
+        "86ba2b019700486d88e2cc29316e97b0",
+        "f576d77f6f4647b98a4165a3334797ad"
+      ],
+      "required_evidence": [
+        "gateway receive, connect, pool, read, write, and completion timestamps plus the exact timed-out operation",
+        "qwen3.6 model load, residency, eviction, or swap events",
+        "concurrent gateway and Ollama requests during the exact and surrounding windows",
+        "prompt-eval and generation token counts and durations, termination reason, GPU pressure, OOM, and Ollama runtime errors"
+      ]
+    },
+    "remediation": [
+      "Do not restart or change current production configuration while vision evidence is pending",
+      "Do not raise the 900-second vtext timeout as a response to a gateway-owned 300-second limit",
+      "Keep one LLM worker until vision confirms safe shared-runtime concurrency",
+      "After vision evidence, choose a shared bounded chunk or output profile only if it provides measured latency headroom",
+      "Keep runtime_timeout retryable but classify any canary requiring retry as degraded"
+    ],
+    "bounded_acceptance_test": {
+      "prerequisite": "vision incident evidence received and explicit operator approval; do not rerun Wave 069",
+      "shape": "two fixed representative vBook lessons with the scheduler otherwise paused, routed only through 192.168.0.122:8000, current qwen3.6 profile, and 6000-character vBook chunks",
+      "clean_pass": "every correction and structure call succeeds on its first attempt; manifests are done with errors=[]; no fallback, 429, 5xx, direct GPU access, or residual queue work; each upstream execution is below 270 seconds",
+      "degraded": "any upstream execution is at least 270 but below 300 seconds, or any automatic retry is needed even if final artifacts succeed",
+      "fail": "any execution reaches 300 seconds, any timeout/5xx occurs, artifacts are invalid, or queue behavior is not explained by single-worker FIFO"
+    },
+    "required_client_actions": [
+      "Publish this bounded diagnosis and the exact vision evidence request through vsync",
+      "Keep the vBook scheduler paused and do not rerun Wave 069",
+      "Reply with vision's durable message path and findings before requesting a bounded two-job canary"
+    ]
+  }
+}
