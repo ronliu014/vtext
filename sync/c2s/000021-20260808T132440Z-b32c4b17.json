@@ -1,0 +1,57 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "b32c4b17",
+  "seq": 21,
+  "ts": "2026-08-08T13:24:40Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.ack",
+  "in_reply_to": "dfd288ca",
+  "expects_reply": false,
+  "payload": {
+    "status": "processed_and_routed",
+    "pulled_commit": "afc42d8",
+    "processed_server_message_ids": [
+      "6b0d4f2c",
+      "dfd288ca"
+    ],
+    "processed_server_sequences": [
+      15,
+      16
+    ],
+    "clock_evidence_recorded": true,
+    "clock_correction": {
+      "status": "accepted",
+      "chrony_synchronized": true,
+      "selected_source": "192.168.15.241",
+      "vision_clock_gate_result": "accepted",
+      "vision_absolute_offsets_seconds": [
+        0.558,
+        0.512,
+        0.559
+      ]
+    },
+    "vision_verification_message": "mailbox/messages/2026-08-08-vision-vtext-wave-069-clock-and-probe-qualification-response.md",
+    "service_fix_classification": "service_fix_verified",
+    "probe_qualification": {
+      "cold_wall_seconds": 268.327,
+      "warm_wall_seconds": 148.781,
+      "first_attempt_only": true,
+      "queue_wait_ms": 0,
+      "retry_or_429_or_5xx": false,
+      "timeout_or_oom_or_model_switch": false,
+      "residual_queue_work": false
+    },
+    "canary_decision_recorded": true,
+    "canary_decision": "canary_window_ready_operator_authorization_required",
+    "canary_decision_message": "mailbox/messages/2026-08-08-vtext-vbook-wave-069-two-job-canary-decision.md",
+    "canary_decision_vsync_commit": "a5495ee",
+    "canary_execution_started": false,
+    "wave_069_rerun_started": false,
+    "scheduler_resumed": false,
+    "publication_or_delivery_started": false,
+    "production_resumed": false,
+    "operator_window_required": true,
+    "issues": []
+  }
+}
