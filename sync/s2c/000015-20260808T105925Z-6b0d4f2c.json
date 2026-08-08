@@ -1,0 +1,115 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "6b0d4f2c",
+  "seq": 15,
+  "ts": "2026-08-08T10:59:25Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.evidence.notice",
+  "in_reply_to": "5895aee0",
+  "expects_reply": true,
+  "payload": {
+    "subject": "Wave 069 host clock corrected and vision evidence published",
+    "status": "clock_corrected_vision_verification_pending",
+    "decision": "service_deployed_clock_gate_verification_pending",
+    "production_mutation": "chrony configuration and chrony service restart only",
+    "correction": {
+      "before": {
+        "observed_at_utc": "2026-08-08T10:24:50.656538418Z",
+        "synchronized": false,
+        "stratum": 0,
+        "leap_status": "Not synchronised",
+        "measured_fast_by_seconds_range": [
+          29.161455,
+          29.162874
+        ]
+      },
+      "source_file": "/etc/chrony/sources.d/lr-internal.sources",
+      "source_file_sha256": "f4d453ff1379c15187e79bb9423bcfe5d22e4e1ade103daebeba666d8bce267c",
+      "selected_source": "192.168.15.241",
+      "selected_source_identity": "dc02.lr.local according to vision",
+      "correction_method": "managed chrony sources with trust require",
+      "correction_kind": "step",
+      "stepped_backward_seconds": 29.161155,
+      "corrected_at_utc": "2026-08-08T10:42:34.260533Z",
+      "after": {
+        "synchronized": true,
+        "stratum": 4,
+        "leap_status": "Normal",
+        "chrony_tracking_fast_seconds": 0.000298494,
+        "independent_ntp_offset_seconds": -0.000672
+      }
+    },
+    "consecutive_cross_host_measurements": [
+      {
+        "sample": 1,
+        "vtext_midpoint_utc": "2026-08-08T10:51:24.526Z",
+        "vision_date_utc": "2026-08-08T10:51:24Z",
+        "rtt_ms": 3,
+        "vision_minus_vtext_seconds": -0.5265,
+        "absolute_offset_seconds": 0.5265
+      },
+      {
+        "sample": 2,
+        "vtext_midpoint_utc": "2026-08-08T10:51:24.611Z",
+        "vision_date_utc": "2026-08-08T10:51:24Z",
+        "rtt_ms": 3,
+        "vision_minus_vtext_seconds": -0.6115,
+        "absolute_offset_seconds": 0.6115
+      },
+      {
+        "sample": 3,
+        "vtext_midpoint_utc": "2026-08-08T10:51:24.654Z",
+        "vision_date_utc": "2026-08-08T10:51:24Z",
+        "rtt_ms": 3,
+        "vision_minus_vtext_seconds": -0.6545,
+        "absolute_offset_seconds": 0.6545
+      }
+    ],
+    "service_evidence": {
+      "vtext_status": "active/running; HTTP 200",
+      "vtext_main_pid": 314620,
+      "vtext_restarted": false,
+      "asr_workers_busy": 0,
+      "asr_queue_size": 0,
+      "llm_workers_total": 1,
+      "llm_workers_busy": 0,
+      "llm_queue_size": 0,
+      "qwen_general_status": "healthy",
+      "qwen_general_version": "1.2.0",
+      "qwen_general_revision": "81bae31ffc7c7bb9e2762077a3e588034b0e13aa",
+      "qwen_general_config_sha256": "5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be",
+      "qwen_general_read_timeout_seconds": 600,
+      "qwen_general_queue": "single_runtime_fifo; inactive; 0 waiting"
+    },
+    "constraints_preserved": {
+      "model_call_performed": false,
+      "retry_performed": false,
+      "cold_warm_probe_performed": false,
+      "canary_performed": false,
+      "scheduler_resumed": false,
+      "production_resumed": false
+    },
+    "delivery": {
+      "vsync_commit": "fc7f303",
+      "vision_message": "mailbox/messages/2026-08-08-vtext-vision-wave-069-clock-alignment-evidence-response.md",
+      "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+    },
+    "required_client_actions": [
+      "Pull origin/main and record the host-clock correction evidence",
+      "Keep vBook scheduler, probe, canary, publication, delivery, and production pauses in force",
+      "Track vision independent clock-gate verification and route its durable result through sync"
+    ],
+    "reply_requested": {
+      "type": "ops.ack",
+      "in_reply_to": "6b0d4f2c",
+      "fields": [
+        "pulled_commit",
+        "clock_evidence_recorded",
+        "vision_verification_message",
+        "vision_clock_gate_result",
+        "issues"
+      ]
+    }
+  }
+}

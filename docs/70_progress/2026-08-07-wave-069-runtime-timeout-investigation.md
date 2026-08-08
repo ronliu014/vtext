@@ -1,8 +1,9 @@
 # Wave 069 qwen-general Runtime Timeout Investigation
 
 Date: 2026-08-07
-Status: source fix prepared; deployment and verification gated
-Decision: `service_fix_required`
+Updated: 2026-08-08
+Status: service fix deployed; host clock aligned; vision verification pending
+Decision: `service_deployed_clock_gate_verification_pending`
 
 ## Incident Result
 
@@ -122,27 +123,43 @@ It is intentionally excluded from Git.
 
 ## Shared-Service Remediation
 
-Classification is `service_fix_required`. A bounded qwen-general change should
-raise only the pre-header read-inactivity budget to 600 seconds, retain the
-five-second connect and pool limits, add phase-level timing and admission
-fields without prompt/response content, expose model-aware single-runtime
-admission or bounded queue feedback, and expose deployed build/config identity.
+vision deployed qwen-general 1.2.0 from revision
+`81bae31ffc7c7bb9e2762077a3e588034b0e13aa`, effective-config SHA-256
+`5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be`.
+The deployed gateway retains five-second connect/pool and 300-second write
+timeouts while raising the pre-header read boundary to 600 seconds. It also
+exposes content-free phase telemetry, model-aware single-runtime FIFO
+admission, a bounded 16-request queue, `GET /queue`, and build/config identity.
 
-vision prepared qwen-general 1.2.0 source candidate `81bae31`. The candidate
-implements independent 5-second connect/pool, 300-second write, and 600-second
-response-read inactivity budgets; content-free phase telemetry; model-aware
-single-runtime FIFO admission with a bounded 16-request queue, retryable 429
-feedback, response queue headers, and `GET /queue`; and build revision plus
-effective-config SHA-256 in health, queue, business headers, and OpenAPI.
+Only the qwen-general gateway was restarted for that deployment. Ollama was
+not restarted, and vision made no model call because the cross-host clock gate
+still failed. The remaining clock blocker was corrected on the vtext Linux
+host on 2026-08-08; vision independent acceptance is pending.
 
-Offline evidence passed 14 qwen-general unit/contract tests and the complete
-212-test vision unit suite using TestClient and MockTransport. No production
-port, GPU, Ollama, or model was contacted.
+## Host Clock Alignment
 
-The candidate is pushed but not deployed. Production remains qwen-general
-1.1.0 with the 300-second read-inactivity boundary. Deployment, gateway
-restart, deployed-state inspection, clock correction, model calls, probes,
-canary, and production resume each require their own applicable authorization.
+Before correction, `timedatectl` reported `System clock synchronized: no` and
+chrony was Stratum 0 with no selectable source. Four internal NTP probes agreed
+that the Linux clock was fast by 29.161455 to 29.162874 seconds. The managed
+source file is `/etc/chrony/sources.d/lr-internal.sources`, SHA-256
+`f4d453ff1379c15187e79bb9423bcfe5d22e4e1ade103daebeba666d8bce267c`,
+with four `trust require` internal sources.
+
+chrony selected `192.168.15.241` (`dc02.lr.local` on vision) and stepped the
+system clock backward by 29.161155 seconds. Post-correction evidence shows
+Stratum 4, `Leap status: Normal`, `System clock synchronized: yes`, and an
+independent NTP offset of -0.000672 seconds. vtext remained PID `314620` and
+was not restarted.
+
+Three consecutive qwen-general HTTP Date midpoint measurements had 3 ms RTT
+and absolute offsets of 0.5265, 0.6115, and 0.6545 seconds. Ten simultaneous
+vtext/qwen-general Date samples differed by at most one second; seven matched
+exactly. Both services were healthy with empty queues and idle workers.
+
+The durable vtext-to-vision evidence is
+`mailbox/messages/2026-08-08-vtext-vision-wave-069-clock-alignment-evidence-response.md`
+in vsync commit `fc7f303`. Clock alignment does not authorize a cold/warm
+probe, canary, scheduler resume, or production recovery.
 
 ## Evidence Preservation
 
@@ -186,5 +203,6 @@ service-envelope test because retained warm production calls took 272.219,
 bounded workload/model profile and cannot be represented as the current qwen3.6
 service envelope.
 
-No production restart or configuration change was made during this
-investigation.
+No vtext restart, request, model call, retry, probe, canary, scheduler resume,
+or production recovery occurred during clock correction. Only chrony was
+reconfigured and restarted to apply the managed host time source.
