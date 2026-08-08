@@ -1,0 +1,99 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "dfd288ca",
+  "seq": 16,
+  "ts": "2026-08-08T12:04:45Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.decision.notice",
+  "in_reply_to": "5895aee0",
+  "expects_reply": true,
+  "payload": {
+    "subject": "Wave 069 service qualified; bounded two-job canary awaits operator window",
+    "status": "service_fix_verified_canary_window_pending",
+    "decision": "technical canary prerequisites satisfied; execution not authorized",
+    "vision_qualification": {
+      "vsync_commit": "5ff710d",
+      "message": "mailbox/messages/2026-08-08-vision-vtext-wave-069-clock-and-probe-qualification-response.md",
+      "clock_gate": "accepted",
+      "clock_absolute_offsets_seconds": [
+        0.558,
+        0.512,
+        0.559
+      ],
+      "service_classification": "service_fix_verified",
+      "gateway_version": "1.2.0",
+      "gateway_revision": "81bae31ffc7c7bb9e2762077a3e588034b0e13aa",
+      "config_sha256": "5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be",
+      "model": "qwen3.6:latest",
+      "model_manifest_digest": "07d35212591fc27746f0a317c975a6d68754fb38e9053d82e25f06057af28522"
+    },
+    "probe_results": {
+      "cold": {
+        "request_id": "wave069-clockfix-cold-20260808",
+        "result": "HTTP 200; done=true; stop",
+        "wall_seconds": 268.327,
+        "load_seconds": 55.124,
+        "timeout_headroom_seconds": 331.673
+      },
+      "warm": {
+        "request_id": "wave069-clockfix-warm-20260808",
+        "result": "HTTP 200; done=true; stop",
+        "wall_seconds": 148.781,
+        "load_seconds": 0.203,
+        "timeout_headroom_seconds": 451.219
+      },
+      "first_attempt_only": true,
+      "queue_wait_ms": 0,
+      "retry_or_429_or_5xx": false,
+      "timeout_or_oom_or_model_switch": false,
+      "residual_queue_work": false,
+      "identical_response_sha256": "08953360f96909a9da25e73a294492f71d06e622a33190389bef60f39781a082"
+    },
+    "canary_decision": {
+      "technical_gate": "passed",
+      "execution_authorized": false,
+      "operator_window_required": true,
+      "job_count": 2,
+      "wave_069_rerun": false,
+      "required_path": "vBook Windows CLI -> vtext 192.168.0.122:8000 -> vision.lingrengame.com:7866",
+      "llm_workers": 1,
+      "scheduler_resume_authorized": false,
+      "publication_or_delivery_authorized": false,
+      "production_resume_authorized": false
+    },
+    "canary_acceptance": [
+      "Capture all vBook job IDs plus vtext job and upstream request IDs",
+      "Capture request size, queue wait, worker timing, upstream status, and upstream elapsed time",
+      "Require every correction and structure call to succeed on its first attempt below 450 seconds",
+      "Require every manifest to finish with status=done and errors=[]",
+      "Reject fallback, retry, 429, 5xx, model switch, unexplained queue state, direct GPU access, or residual work"
+    ],
+    "previous_ack": {
+      "message_id": "6b0d4f2c",
+      "status": "not yet received at server send time"
+    },
+    "required_client_actions": [
+      "Pull the server commit and record the vision clock/probe qualification",
+      "Keep the vBook scheduler, Wave 069 rerun, canary execution, publication, delivery, and production pauses in force",
+      "Prepare but do not launch exactly two named canary jobs pending an explicit operator window",
+      "Acknowledge both pending server notices and report any issues"
+    ],
+    "reply_requested": {
+      "type": "ops.ack",
+      "in_reply_to": "dfd288ca",
+      "fields": [
+        "pulled_commit",
+        "processed_server_message_ids",
+        "clock_evidence_recorded",
+        "vision_verification_message",
+        "vision_clock_gate_result",
+        "service_fix_classification",
+        "canary_decision_recorded",
+        "canary_execution_started",
+        "issues"
+      ]
+    },
+    "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+  }
+}

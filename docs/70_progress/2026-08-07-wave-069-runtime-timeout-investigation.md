@@ -2,8 +2,8 @@
 
 Date: 2026-08-07
 Updated: 2026-08-08
-Status: service fix deployed; host clock aligned; vision verification pending
-Decision: `service_deployed_clock_gate_verification_pending`
+Status: service fix verified; two-job canary operator window pending
+Decision: `service_fix_verified_canary_window_pending`
 
 ## Incident Result
 
@@ -132,9 +132,9 @@ exposes content-free phase telemetry, model-aware single-runtime FIFO
 admission, a bounded 16-request queue, `GET /queue`, and build/config identity.
 
 Only the qwen-general gateway was restarted for that deployment. Ollama was
-not restarted, and vision made no model call because the cross-host clock gate
-still failed. The remaining clock blocker was corrected on the vtext Linux
-host on 2026-08-08; vision independent acceptance is pending.
+not restarted. The remaining clock blocker was corrected on the vtext Linux
+host on 2026-08-08. vision independently accepted the corrected clock gate and
+then completed the separately approved one-cold/one-warm qualification window.
 
 ## Host Clock Alignment
 
@@ -158,8 +158,45 @@ exactly. Both services were healthy with empty queues and idle workers.
 
 The durable vtext-to-vision evidence is
 `mailbox/messages/2026-08-08-vtext-vision-wave-069-clock-alignment-evidence-response.md`
-in vsync commit `fc7f303`. Clock alignment does not authorize a cold/warm
-probe, canary, scheduler resume, or production recovery.
+in vsync commit `fc7f303`.
+
+## Service Qualification And Canary Decision
+
+vision independently retained the one-second clock gate. After waiting for
+the Uvicorn second-granularity Date header to advance, its three consecutive
+absolute cross-host offsets were 0.558, 0.512, and 0.559 seconds.
+
+vision then used its already approved probe window for exactly one cold and one
+identical warm representative qwen3.6 request. Both used the same 16,124-byte
+synthetic non-streaming body, completed on their first attempt, and returned
+the same 2,517-character response digest:
+`08953360f96909a9da25e73a294492f71d06e622a33190389bef60f39781a082`.
+
+| Probe | Request ID | Result | Wall time | Load time | 600-second headroom |
+| --- | --- | --- | ---: | ---: | ---: |
+| Cold | `wave069-clockfix-cold-20260808` | HTTP 200, `done=true`, stop | 268.327 s | 55.124 s | 331.673 s |
+| Warm | `wave069-clockfix-warm-20260808` | HTTP 200, `done=true`, stop | 148.781 s | 0.203 s | 451.219 s |
+
+Both probes had zero queue wait. There was no retry, 429, 5xx, timeout, model
+switch, OOM, second model load, or residual queue work. The effective service
+was qwen-general 1.2.0 revision `81bae31ffc7c7bb9e2762077a3e588034b0e13aa`,
+config SHA-256
+`5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be`,
+with model manifest digest
+`07d35212591fc27746f0a317c975a6d68754fb38e9053d82e25f06057af28522`.
+
+The durable vision qualification is
+`mailbox/messages/2026-08-08-vision-vtext-wave-069-clock-and-probe-qualification-response.md`
+in vsync commit `5ff710d`. The service classification is now
+`service_fix_verified`.
+
+The vText compatibility decision is
+`service_fix_verified_canary_window_pending`: the technical prerequisites for
+a strictly bounded two-job canary are satisfied. This is not execution
+authorization. vBook must keep the scheduler paused and wait for an explicit
+operator window naming the two canary jobs. Wave 069 must not be rerun, and no
+publication, delivery, general production recovery, or scheduler resume is
+authorized by this decision.
 
 ## Evidence Preservation
 
@@ -178,16 +215,10 @@ Snapshots excluded from Git:
 
 ## Bounded Acceptance Test
 
-Do not rerun Wave 069. A two-job canary is not authorized now. It may be
-reconsidered only after the service fix is separately approved, deployed, and
-verified with effective OpenAPI/config evidence for the 600-second boundary,
-observable build identity, and vtext/vision clocks aligned within one second.
-
-Before that canary, separately authorize representative cold and warm probes
-with qwen3.6 exact model/blob identity recorded, no competing model load, one
-Ollama runner, and an empty initial queue. Each probe must succeed on its first
-attempt below 450 seconds, preserving at least 150 seconds of headroom under
-the proposed boundary, with no retry, 5xx, OOM, model switch, or residual work.
+Do not rerun Wave 069. The service deployment, clock, and representative
+cold/warm qualification gates are complete. vText approves proceeding to a
+strictly bounded two-job canary only after a separate explicit operator window
+names those jobs. No canary execution is authorized by this report alone.
 
 For a later separately operator-authorized two-job canary, retain
 `llm_workers=1`, route only through vtext, capture job/request IDs and all queue
@@ -204,5 +235,7 @@ bounded workload/model profile and cannot be represented as the current qwen3.6
 service envelope.
 
 No vtext restart, request, model call, retry, probe, canary, scheduler resume,
-or production recovery occurred during clock correction. Only chrony was
-reconfigured and restarted to apply the managed host time source.
+or production recovery occurred on the vtext host during clock correction or
+qualification review. Only chrony was reconfigured and restarted to apply the
+managed host time source. The qualification model calls were performed and
+owned by vision under its separate approved probe window.
