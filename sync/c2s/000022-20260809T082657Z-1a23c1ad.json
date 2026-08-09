@@ -1,0 +1,89 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "1a23c1ad",
+  "seq": 22,
+  "ts": "2026-08-09T08:26:57Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.investigate.request",
+  "in_reply_to": null,
+  "expects_reply": true,
+  "payload": {
+    "subject": "Correlate Wave 069 two-job canary against vText server logs",
+    "priority": "production-resume-gate",
+    "vsync_request": "mailbox/messages/2026-08-08-vbook-vtext-wave-069-two-job-canary-results-response.md",
+    "vsync_commit": "4419c12",
+    "run": {
+      "run_id": "R20260808-vtext-two-job-canary",
+      "authorized_start": "2026-08-08T13:54:55.489805Z",
+      "completed_at": "2026-08-08T14:19:05.019537Z",
+      "authorized_end": "2026-08-08T15:24:55.489805Z",
+      "server_log_search_window": "2026-08-08T13:50:00Z/2026-08-08T14:25:00Z",
+      "global_scheduler_paused": true,
+      "jobs_executed": 2,
+      "wave_069_rerun": false,
+      "third_job": false
+    },
+    "jobs": [
+      {
+        "vbook_task_id": "001-55bad8cf7b12",
+        "lesson": "基础教学/小白K线基础课/62、头肩底",
+        "vtext_asr_job_id": "2e7c9489",
+        "attempts": 1,
+        "runner_elapsed_seconds": 1449.486,
+        "manifest_elapsed_seconds": 1448.992,
+        "manifest_status": "done",
+        "manifest_errors": []
+      },
+      {
+        "vbook_task_id": "002-e50e0a2b93b7",
+        "lesson": "基础教学/小白K线基础课/63、圆弧顶",
+        "vtext_asr_job_id": "f94fc004",
+        "attempts": 1,
+        "runner_elapsed_seconds": 1194.267,
+        "manifest_elapsed_seconds": 1193.721,
+        "manifest_status": "done",
+        "manifest_errors": []
+      }
+    ],
+    "vbook_local_observation": {
+      "result": "two tasks succeeded on their only attempts; local pass pending vText correlation",
+      "llm_workers": 1,
+      "preflight_queues_empty": true,
+      "observed_single_gateway_operation": true,
+      "retry_or_fallback_or_429_or_5xx_or_timeout": false,
+      "model_switch_or_oom": false,
+      "postflight_queues_empty": true
+    },
+    "evidence": {
+      "root": "E:/projects/my_app/vbook/outputs/compatibility/2026-08-08-wave-069-two-job-canary",
+      "execution_postflight": "E:/projects/my_app/vbook/outputs/compatibility/2026-08-08-wave-069-two-job-canary/execution-postflight.json",
+      "run_summary": "E:/projects/my_app/vbook/outputs/compatibility/2026-08-08-wave-069-two-job-canary/execution/runs/R20260808-vtext-two-job-canary/summary.json",
+      "events": "E:/projects/my_app/vbook/outputs/compatibility/2026-08-08-wave-069-two-job-canary/execution/runs/R20260808-vtext-two-job-canary/events.jsonl",
+      "execution_postflight_sha256": "c292b255c7267d1be93ed01d7200ef39cb26fea7d61ffa5e1f7f2918a9fba6de",
+      "run_summary_sha256": "23a4dff12e45ce63aa8105e57d8c6cb6d65e719a1d9c4284e4ba5cc34cfd2a4c",
+      "events_sha256": "700e3593555b3ae50bd231bc44d371a2648fb349fa3104879ab7b3d4234f1c40"
+    },
+    "checks": [
+      "Preserve and correlate retained server logs for ASR jobs 2e7c9489 and f94fc004 within the bounded UTC window",
+      "Enumerate every correction and structure upstream request belonging to each ASR job; correlate by job/request IDs and timestamps rather than broad static-field text searches",
+      "For every upstream call report request ID, stage, encoded request size, FIFO enqueue/acquire wait, worker start/end, gateway HTTP status, upstream elapsed, total elapsed, and effective model identity",
+      "Confirm effective qwen-general version, revision, config SHA, 600-second read boundary, llm_workers=1, and single-runtime FIFO behavior during the window",
+      "Explicitly check retry, fallback, 429, 5xx, timeout, model switch, OOM, second model load, unexplained queue state, extra job, and residual work",
+      "Confirm postflight vText ASR/LLM queues and worker busy state from server evidence"
+    ],
+    "response_required": [
+      "A compact per-call evidence table grouped by ASR job",
+      "Any evidence gaps that prevent a formal decision",
+      "Independent decision: qualifying or non-qualifying",
+      "Next separately gated action without authorizing scheduler, publication, delivery, Vault writes, or production resume"
+    ],
+    "constraints": [
+      "Do not restart or change vText, qwen-general, Ollama, worker counts, timeouts, or queue configuration",
+      "Do not make a model call, rerun either canary job, run Wave 069, or launch any new probe/canary",
+      "Do not resume the scheduler or production and do not publish, deliver, or mutate canary artifacts",
+      "Do not place large logs in Git; summarize evidence and retain owning-host paths",
+      "Reply through sync/s2c so wcodex can issue the durable vsync result decision"
+    ]
+  }
+}
