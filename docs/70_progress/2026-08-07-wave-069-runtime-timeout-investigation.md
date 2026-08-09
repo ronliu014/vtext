@@ -1,9 +1,9 @@
 # Wave 069 qwen-general Runtime Timeout Investigation
 
 Date: 2026-08-07
-Updated: 2026-08-08
-Status: service fix verified; two-job canary operator window pending
-Decision: `service_fix_verified_canary_window_pending`
+Updated: 2026-08-09
+Status: two-job canary technical pass; authorization provenance pending
+Decision: `technical_pass_procedural_evidence_pending`
 
 ## Incident Result
 
@@ -198,6 +198,89 @@ operator window naming the two canary jobs. Wave 069 must not be rerun, and no
 publication, delivery, general production recovery, or scheduler resume is
 authorized by this decision.
 
+## Two-Job Canary Correlation And Result
+
+The vBook prelaunch acknowledgement reports one relative 90-minute operator
+window for exactly two named non-Wave-069 jobs. vBook started the locked runner at
+`2026-08-08T21:54:55.489805+08:00`, completed at
+`2026-08-08T22:19:05.019537+08:00`, and did not approach the authorized
+`23:24:55.489805+08:00` end. The global scheduler remained paused.
+
+The two selected tasks and their vtext ASR jobs were:
+
+- `001-55bad8cf7b12` / `基础教学/小白K线基础课/62、头肩底`:
+  ASR job `2e7c9489`;
+- `002-e50e0a2b93b7` / `基础教学/小白K线基础课/63、圆弧顶`:
+  ASR job `f94fc004`.
+
+Both ASR jobs completed with one vBook attempt. The client manifests reported
+`status=done` and `errors=[]`. The two-stage client pipeline and immediate
+enqueue sequence correlate exactly four LLM calls:
+
+| Task / stage | LLM job / request ID | Request bytes | vtext FIFO wait | Upstream elapsed | Enqueue-to-done | Result |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| `002` correction | `56cc2639` / `0ad3096a3b9546889591aa9834eaf888` | 16,182 | 0.001244 s | 280.148 s | 280.150775 s | done, HTTP 200 |
+| `001` correction | `275bc995` / `b1fe14da93a74a1a9483a3dc0174a648` | 20,588 | 160.999597 s | 291.326 s | 452.326866 s | done, HTTP 200 |
+| `002` structure | `ee3e8ee7` / `2529498c13b94f3cb8ca79c81bda2100` | 11,808 | 291.060386 s | 250.366 s | 541.427670 s | done, HTTP 200 |
+| `001` structure | `c4e20889` / `aa18f17e3bc243e18f72d004b49e8dc1` | 10,831 | 250.227666 s | 255.313 s | 505.541920 s | done, HTTP 200 |
+
+Precise enqueue, worker-acquire, and completion timestamps are retained in
+`journalctl --user -u vtext.service`:
+
+| LLM job | Enqueued | Worker start | Worker end |
+| --- | --- | --- | --- |
+| `56cc2639` | `22:01:07.778046+08:00` | `22:01:07.779290+08:00` | `22:05:47.928821+08:00` |
+| `275bc995` | `22:03:06.932789+08:00` | `22:05:47.932386+08:00` | `22:10:39.259655+08:00` |
+| `ee3e8ee7` | `22:05:48.202915+08:00` | `22:10:39.263301+08:00` | `22:14:49.630585+08:00` |
+| `c4e20889` | `22:10:39.406174+08:00` | `22:14:49.633840+08:00` | `22:19:04.948094+08:00` |
+
+The upstream limit applies to each worker-to-gateway execution, not to vtext
+FIFO wait plus execution. All four upstream executions were below 450 seconds.
+The three longer enqueue-to-done values are expected serialization under the
+required single LLM worker and are not timeout-boundary failures.
+
+The dynamic canary-window journal contains exactly four LLM queued/start/done
+chains, all using `qwen3.6:latest` and ending with HTTP 200. There is no
+vtext-side retry, fallback, queue-full/429, 5xx, timeout, upstream error, model
+change, unexplained queue event, or extra LLM call. vBook independently
+reported no retry, fallback, OOM, second model load, invalid manifest, residual
+work, or extra task.
+
+Postflight read-only checks found:
+
+- vtext ASR and LLM jobs all retained as `done`;
+- vtext HTTP health `ok`, ASR workers `2/0 busy`, LLM workers `1/0 busy`,
+  ASR queue `0/16`, and LLM queue `0/16`;
+- the unchanged vtext main PID `314620`, active since
+  `2026-07-30T07:35:47Z`;
+- qwen-general 1.2.0 revision
+  `81bae31ffc7c7bb9e2762077a3e588034b0e13aa`, unchanged config SHA-256
+  `5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be`,
+  healthy with inactive admission and zero waiting.
+
+qwen-general exposes current `/health` and `/queue` state plus response
+headers, but no request-ID historical telemetry endpoint. vtext did retain the
+required request IDs, request sizes, FIFO waits, worker timing, HTTP results,
+and full worker-to-gateway elapsed times. This observability limit does not
+change the result because all four complete upstream intervals were measured,
+the required single vtext LLM worker prevented overlapping submissions, and
+the client and gateway observations found no stop condition.
+
+The vBook canary-window acknowledgement was committed as vsync `3f33792`
+before execution and states that the operator authorized the exact two tasks,
+relative 90-minute window, and retained pauses. vision has separately requested
+the underlying operator-approval provenance because the acknowledgement is a
+vBook assertion rather than the originating operator record. A later
+2026-08-09 preparation approval cannot be used retroactively.
+
+The independent vText technical result is `pass`. Formal classification is
+`technical_pass_procedural_evidence_pending` until vBook returns one of
+`authorization_provenance_confirmed`,
+`authorization_provenance_unavailable`, or
+`authorization_scope_mismatch`. This closes technical correlation only. It
+does not authorize scheduler resume, publication, delivery, Vault writes,
+another task/probe/canary, or general production recovery.
+
 ## Evidence Preservation
 
 Original sanitized logs:
@@ -215,18 +298,12 @@ Snapshots excluded from Git:
 
 ## Bounded Acceptance Test
 
-Do not rerun Wave 069. The service deployment, clock, and representative
-cold/warm qualification gates are complete. vText approves proceeding to a
-strictly bounded two-job canary only after a separate explicit operator window
-names those jobs. No canary execution is authorized by this report alone.
-
-For a later separately operator-authorized two-job canary, retain
-`llm_workers=1`, route only through vtext, capture job/request IDs and all queue
-and upstream timing evidence, and require all correction and structure calls
-to succeed on the first attempt with valid manifests. Reject any automatic
-retry, fallback, 429, 5xx, model switch, unexplained queue state, or residual
-work. An automatic retry remains operational recovery but makes the canary
-degraded.
+Do not rerun Wave 069. The service deployment, clock, representative cold/warm
+qualification, and two-job canary technical gates are complete. The canary is
+a technical pass under the defined service envelope, but formal acceptance is
+pending the execution-authorization provenance requested by vision. Any
+scheduler resume, publication, delivery, Vault write, or general production
+recovery requires both procedural closure and a new explicit operator decision.
 
 The earlier provisional 270-second clean threshold is superseded for this
 service-envelope test because retained warm production calls took 272.219,
@@ -234,8 +311,7 @@ service-envelope test because retained warm production calls took 272.219,
 bounded workload/model profile and cannot be represented as the current qwen3.6
 service envelope.
 
-No vtext restart, request, model call, retry, probe, canary, scheduler resume,
-or production recovery occurred on the vtext host during clock correction or
-qualification review. Only chrony was reconfigured and restarted to apply the
-managed host time source. The qualification model calls were performed and
-owned by vision under its separate approved probe window.
+No vtext restart or configuration change occurred during the two-job canary or
+result review. Exactly the four correlated LLM calls above ran in the approved
+window. No later request, retry, probe, canary, scheduler resume, publication,
+delivery, Vault write, or production recovery was performed by this review.

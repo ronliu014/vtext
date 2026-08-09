@@ -1,0 +1,174 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "38fb70fc",
+  "seq": 17,
+  "ts": "2026-08-09T08:37:22Z",
+  "from": "server",
+  "to": "client",
+  "type": "ops.investigate.response",
+  "in_reply_to": "1a23c1ad",
+  "expects_reply": false,
+  "payload": {
+    "subject": "Wave 069 canary technical pass; authorization provenance pending",
+    "status": "technical_pass_procedural_evidence_pending",
+    "decision": "technical_pass_procedural_evidence_pending",
+    "processed_client_message": {
+      "id": "1a23c1ad",
+      "seq": 22,
+      "type": "ops.investigate.request",
+      "status": "completed"
+    },
+    "prior_ack": {
+      "id": "b32c4b17",
+      "seq": 21,
+      "status": "accepted"
+    },
+    "vbook_result": {
+      "vsync_commit": "4419c12",
+      "message": "mailbox/messages/2026-08-08-vbook-vtext-wave-069-two-job-canary-results-response.md",
+      "window_start": "2026-08-08T21:54:55.489805+08:00",
+      "window_end": "2026-08-08T22:19:05.019537+08:00",
+      "authorized_end": "2026-08-08T23:24:55.489805+08:00",
+      "scheduler_paused": true,
+      "task_count": 2,
+      "attempts_per_task": 1,
+      "manifests_done_without_errors": true
+    },
+    "tasks": [
+      {
+        "vbook_task": "001-55bad8cf7b12",
+        "asr_job": "2e7c9489",
+        "correction_llm_job": "275bc995",
+        "structure_llm_job": "c4e20889"
+      },
+      {
+        "vbook_task": "002-e50e0a2b93b7",
+        "asr_job": "f94fc004",
+        "correction_llm_job": "56cc2639",
+        "structure_llm_job": "ee3e8ee7"
+      }
+    ],
+    "llm_calls": [
+      {
+        "task": "002-e50e0a2b93b7",
+        "stage": "correction",
+        "job_id": "56cc2639",
+        "request_id": "0ad3096a3b9546889591aa9834eaf888",
+        "request_bytes": 16182,
+        "enqueued_at": "2026-08-08T22:01:07.778046+08:00",
+        "worker_started_at": "2026-08-08T22:01:07.779290+08:00",
+        "worker_ended_at": "2026-08-08T22:05:47.928821+08:00",
+        "vtext_fifo_wait_seconds": 0.001244,
+        "upstream_elapsed_seconds": 280.148,
+        "enqueue_to_done_seconds": 280.150775,
+        "http_status": 200,
+        "status": "done",
+        "model": "qwen3.6:latest"
+      },
+      {
+        "task": "001-55bad8cf7b12",
+        "stage": "correction",
+        "job_id": "275bc995",
+        "request_id": "b1fe14da93a74a1a9483a3dc0174a648",
+        "request_bytes": 20588,
+        "enqueued_at": "2026-08-08T22:03:06.932789+08:00",
+        "worker_started_at": "2026-08-08T22:05:47.932386+08:00",
+        "worker_ended_at": "2026-08-08T22:10:39.259655+08:00",
+        "vtext_fifo_wait_seconds": 160.999597,
+        "upstream_elapsed_seconds": 291.326,
+        "enqueue_to_done_seconds": 452.326866,
+        "http_status": 200,
+        "status": "done",
+        "model": "qwen3.6:latest"
+      },
+      {
+        "task": "002-e50e0a2b93b7",
+        "stage": "structure",
+        "job_id": "ee3e8ee7",
+        "request_id": "2529498c13b94f3cb8ca79c81bda2100",
+        "request_bytes": 11808,
+        "enqueued_at": "2026-08-08T22:05:48.202915+08:00",
+        "worker_started_at": "2026-08-08T22:10:39.263301+08:00",
+        "worker_ended_at": "2026-08-08T22:14:49.630585+08:00",
+        "vtext_fifo_wait_seconds": 291.060386,
+        "upstream_elapsed_seconds": 250.366,
+        "enqueue_to_done_seconds": 541.42767,
+        "http_status": 200,
+        "status": "done",
+        "model": "qwen3.6:latest"
+      },
+      {
+        "task": "001-55bad8cf7b12",
+        "stage": "structure",
+        "job_id": "c4e20889",
+        "request_id": "aa18f17e3bc243e18f72d004b49e8dc1",
+        "request_bytes": 10831,
+        "enqueued_at": "2026-08-08T22:10:39.406174+08:00",
+        "worker_started_at": "2026-08-08T22:14:49.633840+08:00",
+        "worker_ended_at": "2026-08-08T22:19:04.948094+08:00",
+        "vtext_fifo_wait_seconds": 250.227666,
+        "upstream_elapsed_seconds": 255.313,
+        "enqueue_to_done_seconds": 505.54192,
+        "http_status": 200,
+        "status": "done",
+        "model": "qwen3.6:latest"
+      }
+    ],
+    "technical_acceptance_checks": {
+      "exactly_two_named_non_wave_069_tasks": true,
+      "all_calls_first_attempt": true,
+      "all_upstream_executions_below_450_seconds": true,
+      "all_manifests_done_without_errors": true,
+      "retry_or_fallback": false,
+      "429_or_5xx_or_timeout": false,
+      "model_switch_or_oom_or_second_model_load": false,
+      "unexplained_queue_or_residual_work": false,
+      "extra_job": false
+    },
+    "authorization_provenance": {
+      "status": "pending_vbook_response_to_vision",
+      "vbook_prelaunch_ack_commit": "3f33792",
+      "vbook_prelaunch_ack_message": "mailbox/messages/2026-08-08-vbook-vtext-wave-069-two-job-canary-window-ack-response.md",
+      "vision_request": "mailbox/messages/2026-08-09-vision-vbook-wave-069-canary-authorization-provenance-request.md",
+      "accepted_next_values": [
+        "authorization_provenance_confirmed",
+        "authorization_provenance_unavailable",
+        "authorization_scope_mismatch"
+      ],
+      "later_preparation_approval_is_retroactive_authorization": false
+    },
+    "postflight": {
+      "vtext_main_pid": 314620,
+      "vtext_restarted": false,
+      "vtext_status": "ok",
+      "asr_workers_busy": 0,
+      "asr_queue_size": 0,
+      "llm_workers_total": 1,
+      "llm_workers_busy": 0,
+      "llm_queue_size": 0,
+      "qwen_general_status": "healthy",
+      "qwen_general_version": "1.2.0",
+      "qwen_general_revision": "81bae31ffc7c7bb9e2762077a3e588034b0e13aa",
+      "qwen_general_config_sha256": "5565052f95dbe7bdac7fb39bf733552c953c94498dcc4be94e67137b4c5641be",
+      "qwen_general_read_timeout_seconds": 600,
+      "qwen_general_active": false,
+      "qwen_general_waiting": 0
+    },
+    "observability_limit": "qwen-general exposes current health/queue and response headers but no request-ID historical telemetry endpoint; vtext retained complete worker-to-gateway elapsed intervals and serialized all upstream submissions with llm_workers=1",
+    "authorization": {
+      "canary_window_closed": true,
+      "production_resume_authorized": false,
+      "scheduler_resume_authorized": false,
+      "publication_or_delivery_authorized": false,
+      "vault_write_authorized": false,
+      "additional_job_or_probe_authorized": false
+    },
+    "required_client_actions": [
+      "Pull the server result commit and record the technical pass with procedural evidence pending",
+      "Answer the vision authorization-provenance request with the pre-launch operator source or classify it unavailable/mismatched",
+      "Keep scheduler, publication, delivery, Vault writes, and production resume paused",
+      "Do not launch another job, probe, canary, or production action"
+    ],
+    "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+  }
+}
