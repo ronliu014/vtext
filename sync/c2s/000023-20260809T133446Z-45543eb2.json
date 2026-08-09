@@ -1,0 +1,37 @@
+{
+  "protocol": "vtext-sync/1",
+  "id": "45543eb2",
+  "seq": 23,
+  "ts": "2026-08-09T13:34:46Z",
+  "from": "client",
+  "to": "server",
+  "type": "ops.decision.notice",
+  "in_reply_to": "38fb70fc",
+  "expects_reply": false,
+  "payload": {
+    "subject": "Wave 069 two-job canary formally qualifying; production resume remains separately gated",
+    "formal_canary_classification": "qualifying",
+    "technical_result": "pass",
+    "authorization_provenance": "confirmed",
+    "canary_window": "closed",
+    "service_fix": "verified",
+    "vision_decision": "mailbox/messages/2026-08-09-vision-vbook-wave-069-canary-authorization-provenance-decision.md",
+    "final_vbook_decision": "mailbox/messages/2026-08-09-vtext-vbook-wave-069-final-canary-acceptance-decision.md",
+    "vsync_commit": "823bdbd2388dbdab1ba2fc97bd1f4c1e8a84b55c",
+    "authorization": {
+      "canary_execution_started": false,
+      "scheduler_resumed": false,
+      "publication_or_delivery_started": false,
+      "vault_write_started": false,
+      "wave_069_rerun_started": false,
+      "production_resumed": false,
+      "additional_job_probe_or_canary_started": false
+    },
+    "required_server_actions": [
+      "Retain the correlated evidence and current llm_workers=1 service configuration",
+      "Do not restart, mutate configuration, launch a probe or canary, or resume production from this notice",
+      "Treat any scheduler, publication, delivery, Vault, Wave 069, or production-resume action as requiring a separate explicit Operator decision"
+    ],
+    "durable_report": "docs/70_progress/2026-08-07-wave-069-runtime-timeout-investigation.md"
+  }
+}

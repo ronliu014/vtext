@@ -2,8 +2,8 @@
 
 Date: 2026-08-07
 Updated: 2026-08-09
-Status: two-job canary technical pass; authorization provenance pending
-Decision: `technical_pass_procedural_evidence_pending`
+Status: formal two-job canary qualifying; production resume separately gated
+Decision: `qualifying`
 
 ## Incident Result
 
@@ -273,13 +273,15 @@ the underlying operator-approval provenance because the acknowledgement is a
 vBook assertion rather than the originating operator record. A later
 2026-08-09 preparation approval cannot be used retroactively.
 
-The independent vText technical result is `pass`. Formal classification is
-`technical_pass_procedural_evidence_pending` until vBook returns one of
-`authorization_provenance_confirmed`,
-`authorization_provenance_unavailable`, or
-`authorization_scope_mismatch`. This closes technical correlation only. It
-does not authorize scheduler resume, publication, delivery, Vault writes,
-another task/probe/canary, or general production recovery.
+The independent vText technical result is `pass`. vBook returned the bounded
+originating operator instruction and immutable pre-launch evidence, and vision
+independently verified the commit ordering, blob identity, exact two-task
+scope, relative 90-minute window, one-attempt limit, and retained pauses.
+Authorization provenance is therefore `confirmed`, the procedural evidence
+gate is closed, and the completed two-job canary is formally `qualifying`.
+This classification accepts only the completed canary. It does not authorize
+scheduler resume, publication, delivery, Vault writes, another task,
+probe/canary, Wave 069 rerun, or general production recovery.
 
 ## Evidence Preservation
 
@@ -299,11 +301,11 @@ Snapshots excluded from Git:
 ## Bounded Acceptance Test
 
 Do not rerun Wave 069. The service deployment, clock, representative cold/warm
-qualification, and two-job canary technical gates are complete. The canary is
-a technical pass under the defined service envelope, but formal acceptance is
-pending the execution-authorization provenance requested by vision. Any
-scheduler resume, publication, delivery, Vault write, or general production
-recovery requires both procedural closure and a new explicit operator decision.
+qualification, technical correlation, and authorization-provenance gates are
+complete. The completed two-job canary is formally `qualifying` under the
+defined service envelope and its window is closed. Any scheduler resume,
+publication, delivery, Vault write, additional execution, Wave 069 rerun, or
+general production recovery still requires a new explicit Operator decision.
 
 The earlier provisional 270-second clean threshold is superseded for this
 service-envelope test because retained warm production calls took 272.219,
