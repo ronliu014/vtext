@@ -4,17 +4,14 @@ These tests spin up a real FastAPI TestClient but mock out the actual
 whisper.cpp subprocess, letting us exercise the full client→server pipeline
 without needing whisper.cpp or ffmpeg installed.
 """
-import json
 import time
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from vtext_server.app import create_app
 from vtext_server.config import ServerConfig
-from vtext_common.types import JobStatus
 
 
 FAKE_WHISPER_OUTPUT = {
@@ -203,7 +200,7 @@ class TestQueueFull:
         cfg.workers = 0  # no workers, so jobs pile up
         cfg.queue_max = 1
 
-        from vtext_common.types import Segment, TranscriptionResult
+        from vtext_common.types import TranscriptionResult
         fake_result = TranscriptionResult(
             text="hi", language="en", source="a.wav", duration=1.0, segments=[]
         )

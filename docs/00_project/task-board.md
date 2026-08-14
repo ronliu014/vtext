@@ -1,6 +1,6 @@
 # vtext Task Board
 
-Last updated: 2026-07-30
+Last updated: 2026-08-14
 
 ## Done
 
@@ -18,6 +18,11 @@ Last updated: 2026-07-30
   latency evidence.
 - Committed the reviewed implementation as `886b5b4`, deployed it to production
   `:8000`, and completed local/LAN health plus a successful relay smoke.
+- Correlated the Wave 069 timeout to the qwen-general 300-second pre-header
+  inactivity boundary and completed the clock-alignment evidence chain.
+- Verified qwen-general 1.2.0 with one cold and one warm representative request.
+- Completed and formally qualified the bounded two-job vBook canary while
+  retaining all production resume and publication gates.
 
 ## Next
 
@@ -27,6 +32,8 @@ Last updated: 2026-07-30
 - Run one Windows/vBook lesson through the deployed relay when an end-to-end
   consumer fixture is available.
 - Add batch-level manifest support if vBook needs course-scale invocation.
+- Obtain a new explicit Operator decision before scheduler resume, publication,
+  delivery, Vault writes, additional canaries, or general production recovery.
 
 ## Later
 

@@ -1,5 +1,4 @@
 """Tests for vtext_common.formats."""
-import pytest
 from vtext_common.formats import to_txt, to_srt, to_vtt, format_output, _fmt_srt_time, _fmt_vtt_time
 from vtext_common.types import Segment
 

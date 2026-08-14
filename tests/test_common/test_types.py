@@ -1,5 +1,4 @@
 """Tests for vtext_common.types."""
-import pytest
 from vtext_common.types import (
     OutputFormat, JobStatus, Segment, TranscriptionResult, JobInfo, QueueStatus
 )

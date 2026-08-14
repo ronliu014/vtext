@@ -1,12 +1,12 @@
 """Tests for vtext_server.models."""
 import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from vtext_server.errors import ModelNotFoundError
 from vtext_server.models import (
     resolve_model_path, list_available, list_cached, download,
-    MODEL_FILES, MODEL_SIZES_MB,
+    MODEL_FILES,
 )
 from vtext_server.config import ServerConfig
 

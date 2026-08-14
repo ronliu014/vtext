@@ -1,7 +1,7 @@
 """Tests for vtext_client.api."""
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 import pytest
 import requests
@@ -10,7 +10,6 @@ from vtext_client.api import submit_job, stream_progress, check_health, _iter_ss
 from vtext_client.errors import (
     QueueFullError, ServerConnectionError, ServerError, TimeoutError
 )
-from vtext_common.types import Segment, TranscriptionResult
 
 
 class TestSubmitJob:

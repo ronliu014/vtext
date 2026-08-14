@@ -21,6 +21,6 @@ def load_toml(path: Path) -> dict:
                 return tomli.load(f)
         except ImportError:
             raise RuntimeError(
-                f"Python < 3.11 requires 'tomli' to read config files: "
-                f"pip install tomli"
+                "Python < 3.11 requires 'tomli' to read config files: "
+                "pip install tomli"
             )

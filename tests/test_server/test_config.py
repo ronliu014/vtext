@@ -3,9 +3,8 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
-from vtext_server.config import ServerConfig, load_server_config
+from vtext_server.config import load_server_config
 
 
 def write_toml(path: Path, content: str) -> Path:

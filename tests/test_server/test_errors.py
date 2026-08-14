@@ -1,5 +1,4 @@
 """Tests for vtext_server.errors."""
-import pytest
 from vtext_server.errors import (
     VtextServerError,
     TranscriptionError,

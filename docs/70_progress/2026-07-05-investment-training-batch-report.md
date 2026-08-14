@@ -1,5 +1,12 @@
 # 投资训练营视频批量处理 - 最终报告
 
+> Historical snapshot: this report records the 441/450 state reached on
+> 2026-07-05 at 11:44. The server-side zstd fix was subsequently verified and
+> all 450 videos completed successfully, as recorded in
+> `sync/c2s/000015-20260705T100000Z-c5d7e93a.json`. The one-off retry and Vault
+> migration scripts referenced below were removed after the task completed;
+> they remain recoverable from Git history.
+
 ## 📊 完成概况
 
 **处理时间**: 2026-07-04 17:00 ~ 2026-07-05 11:44 (约 19 小时)

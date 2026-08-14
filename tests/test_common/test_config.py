@@ -1,8 +1,5 @@
 """Tests for vtext_common.config and vtext_server.config."""
-import os
 import sys
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 

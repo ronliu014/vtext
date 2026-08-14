@@ -1,12 +1,17 @@
 # vtext Status
 
-Last updated: 2026-07-30
+Last updated: 2026-08-14
 
 ## Current State
 
 - The reviewed qwen-general OpenAPI 1.1.0 compatibility implementation is
   committed as `886b5b4`, deployed on production `:8000`, and verified through
   local/LAN health plus a successful end-to-end relay smoke.
+- qwen-general 1.2.0 raises the pre-header read inactivity boundary from 300 to
+  600 seconds. The cold/warm service qualification and the bounded two-job
+  vBook canary both passed; the canary is formally `qualifying`.
+- The qualifying canary does not authorize scheduler resume, publication,
+  delivery, Vault writes, Wave 069 reruns, or general production recovery.
 - vtext provides client/server audio and video transcription.
 - The production request path is vBook/Windows CLI -> Linux vtext service at
   192.168.0.122:8000 -> qwen-general at vision.lingrengame.com:7866.
@@ -33,9 +38,9 @@ Last updated: 2026-07-30
 
 ## Known Limits
 
-- The vision-managed gateway has a 300-second read/write inactivity timeout.
-  The deployed vtext 900-second caller timeout cannot extend that inactivity
-  window.
+- The vision-managed gateway retains a 300-second write timeout and now has a
+  600-second pre-header read timeout. The deployed vtext 900-second caller
+  timeout cannot extend either gateway-owned boundary.
 - Server upload handling still reads the request body before writing temporary
   audio, so very large uploads are constrained by configured max size and memory.
 - The default/base Python environment may not include opencc; use the App

@@ -1,5 +1,4 @@
 """Tests for vtext_server FastAPI app endpoints."""
-import json
 import queue
 from pathlib import Path
 from unittest.mock import MagicMock, patch

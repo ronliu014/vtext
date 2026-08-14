@@ -6,10 +6,14 @@ build/
 .venv/
 venv/
 *.egg
+.claude/
+.ccb/
 .pytest_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 *.tmp
+*.orig
+*.rej
 *.wav
 *.zst

@@ -1,9 +1,7 @@
 """Tests for vtext_server.worker."""
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from vtext_server.worker import worker_loop
 from vtext_server.config import ServerConfig
@@ -158,7 +156,6 @@ class TestWorkerLoop:
         assert "whisper failed" in result_jobs["job1"]["error"]
 
     def test_model_not_found_sets_error_status(self, tmp_path):
-        from vtext_server.errors import ModelNotFoundError
         cfg = make_config(tmp_path)
         wav = tmp_path / "audio.wav"
         wav.write_bytes(b"data")
@@ -251,7 +248,6 @@ class TestWorkerLoop:
         wav = tmp_path / "audio.wav"
         wav.write_bytes(b"data")
         fake_result = make_fake_result()
-        observed_statuses = []
 
         def fake_transcribe(**kw):
             # At this point status should already be PROCESSING
