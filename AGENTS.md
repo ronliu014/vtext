@@ -137,19 +137,28 @@ Server uses `multiprocessing` workers (not threads).
 
 vText participates in `vsync/v1` as the text, manifest, and LLM-fusion support service for the v-series video-note processing cluster. Use vsync as the central mailbox for durable communication with `vbook` and `vision`; do not rely on chat history as the cross-project record.
 
+Environment-specific checkout paths:
+
+- **vtext-server / Linux:** `/mnt/data/projects/vsync` is the canonical local checkout for `lcodex` and all vtext-server tasks.
+- **vtext-client / Windows:** `E:/projects/my_app/vsync`.
+- On vtext-server, always use `/mnt/data/projects/vsync` directly. Do not translate, guess, or probe for a Linux mount of the Windows path.
+
 Canonical protocol:
 
-- `E:/projects/my_app/vsync/PROTOCOL.md`
+- vtext-server: `/mnt/data/projects/vsync/PROTOCOL.md`
+- vtext-client: `E:/projects/my_app/vsync/PROTOCOL.md`
 
 Mailbox:
 
-- inbox: `E:/projects/my_app/vsync/mailbox/inbox/vtext/README.md`
-- outbox: `E:/projects/my_app/vsync/mailbox/outbox/vtext/README.md`
-- messages: `E:/projects/my_app/vsync/mailbox/messages/`
+- vtext-server inbox: `/mnt/data/projects/vsync/mailbox/inbox/vtext/README.md`
+- vtext-server outbox: `/mnt/data/projects/vsync/mailbox/outbox/vtext/README.md`
+- vtext-server messages: `/mnt/data/projects/vsync/mailbox/messages/`
+- vtext-client uses the corresponding paths under `E:/projects/my_app/vsync`.
 
 When creating, replying to, querying, indexing, or auditing cross-project messages, use:
 
-- `E:/projects/my_app/vsync/skills/cross-project-communication/SKILL.md`
+- vtext-server: `/mnt/data/projects/vsync/skills/cross-project-communication/SKILL.md`
+- vtext-client: `E:/projects/my_app/vsync/skills/cross-project-communication/SKILL.md`
 
 Rules:
 
